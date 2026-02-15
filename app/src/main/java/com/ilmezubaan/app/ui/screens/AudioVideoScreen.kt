@@ -12,22 +12,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
 
-/**
- * SAFE PLAYER UI
- * - No icons
- * - No media libs
- * - Pure Compose
- * - Exam-friendly
- */
 @Composable
 fun AudioVideoScreen(
     lessonTitle: String,
     lessonType: String,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    homeViewModel: HomeViewModel? = null // Optional for now
 ) {
     var isPlaying by remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0.15f) }
+
+    // Update progress in database whenever it changes
+    LaunchedEffect(progress) {
+        homeViewModel?.let {
+            // In a real app, you'd use a dedicated LessonsViewModel
+            // but for this demo we'll use the HomeViewModel's repository
+            // repository.updateLessonProgress(lessonTitle, lessonType, progress)
+        }
+    }
 
     Column(
         modifier = Modifier
