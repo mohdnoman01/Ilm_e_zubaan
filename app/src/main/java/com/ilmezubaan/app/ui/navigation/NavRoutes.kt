@@ -7,4 +7,6 @@ object NavRoutes {
     const val LESSONS = "lessons"
     const val PLAYER = "player"
     const val PROFILE = "profile"
+    const val LITERACY = "literacy"
+    const val VOCABULARY = "vocabulary"
 }
