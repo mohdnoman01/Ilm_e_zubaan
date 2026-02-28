@@ -29,13 +29,42 @@ fun LessonListScreen(
     language: String,
     onLessonClick: (Lesson) -> Unit
 ) {
-    val lessons = listOf(
-        Lesson("Basic Reading", "AUDIO"),
-        Lesson("Daily Conversation", "VIDEO"),
-        Lesson("Health & Hygiene", "AUDIO"),
-        Lesson("Community Rules", "VIDEO"),
-        Lesson("Basic Math", "AUDIO")
+    val pashtoLessons = listOf(
+        Lesson("Basic Greetings", "AUDIO"),
+        Lesson("Self Introduction", "VIDEO"),
+        Lesson("Common Questions", "AUDIO"),
+        Lesson("Numbers 1-10", "VIDEO"),
+        Lesson("Family Members", "AUDIO")
     )
+
+    val punjabiLessons = listOf(
+        Lesson("Basic Greetings", "AUDIO"),
+        Lesson("Family Relations", "VIDEO"),
+        Lesson("Common Phrases", "AUDIO"),
+        Lesson("Numbers 1-10", "VIDEO"),
+        Lesson("Colors in Punjabi", "AUDIO")
+    )
+
+    val sindhiLessons = listOf(
+        Lesson("Basic Greetings", "AUDIO"),
+        Lesson("Daily Phrases", "VIDEO"),
+        Lesson("Numbers 1-10", "AUDIO"),
+        Lesson("Market Talk", "VIDEO"),
+        Lesson("Time & Days", "AUDIO")
+    )
+
+    val lessons = when (language.lowercase()) {
+        "pashto" -> pashtoLessons
+        "punjabi" -> punjabiLessons
+        "sindhi" -> sindhiLessons
+        else -> listOf(
+            Lesson("Basic Reading", "AUDIO"),
+            Lesson("Daily Conversation", "VIDEO"),
+            Lesson("Health & Hygiene", "AUDIO"),
+            Lesson("Community Rules", "VIDEO"),
+            Lesson("Basic Math", "AUDIO")
+        )
+    }
 
     Scaffold(
         topBar = {

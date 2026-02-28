@@ -1,6 +1,8 @@
 package com.ilmezubaan.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -20,11 +22,9 @@ fun AppNavGraph() {
     val navController = rememberNavController()
     val context = LocalContext.current
     
-    // Set up database and repository for HomeViewModel
     val database = AppDatabase.getDatabase(context)
     val repository = UserStatsRepository(database.userStatsDao())
     
-    // Create the ViewModels once at the NavHost level to share them across screens
     val languageViewModel: LanguageViewModel = viewModel()
     val homeViewModel: HomeViewModel = viewModel(
         factory = HomeViewModelFactory(repository)
@@ -57,8 +57,40 @@ fun AppNavGraph() {
                 onProfileClick = {
                     navController.navigate(NavRoutes.PROFILE)
                 },
+                onLiteracyClick = {
+                    navController.navigate(NavRoutes.LITERACY)
+                },
+                onVocabularyClick = {
+                    navController.navigate(NavRoutes.VOCABULARY)
+                },
                 languageViewModel = languageViewModel,
                 homeViewModel = homeViewModel
+            )
+        }
+
+        composable(NavRoutes.LITERACY) {
+            val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
+            LiteracyScreen(
+                language = selectedLanguage.name,
+                onBack = { navController.popBackStack() },
+                onLessonClick = { lesson ->
+                    navController.navigate(
+                        "${NavRoutes.PLAYER}/${lesson.title}/${lesson.type}"
+                    )
+                }
+            )
+        }
+
+        composable(NavRoutes.VOCABULARY) {
+            val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
+            VocabularyScreen(
+                language = selectedLanguage.name,
+                onBack = { navController.popBackStack() },
+                onLessonClick = { lesson ->
+                    navController.navigate(
+                        "${NavRoutes.PLAYER}/${lesson.title}/${lesson.type}"
+                    )
+                }
             )
         }
 

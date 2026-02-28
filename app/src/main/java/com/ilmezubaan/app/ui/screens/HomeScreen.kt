@@ -29,6 +29,8 @@ fun HomeScreen(
     onLanguageClick: () -> Unit,
     onLessonClick: (Lesson) -> Unit,
     onProfileClick: () -> Unit,
+    onLiteracyClick: () -> Unit,
+    onVocabularyClick: () -> Unit,
     languageViewModel: LanguageViewModel,
     homeViewModel: HomeViewModel
 ) {
@@ -131,20 +133,63 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    CategoryItem("Literacy", Icons.Default.MenuBook, AppTeal, AppTealLight)
-                    CategoryItem("Work", Icons.Default.Construction, AppOrange, AppOrangeLight)
-                    CategoryItem("Life Skills", Icons.Default.VolunteerActivism, AppPeach, AppPeachLight)
+                    CategoryItem("Literacy", Icons.Default.MenuBook, AppTeal, AppTealLight, onLiteracyClick)
+                    CategoryItem("Vocabulary", Icons.Default.Translate, AppOrange, AppOrangeLight, onVocabularyClick)
+                    CategoryItem("Life Skills", Icons.Default.VolunteerActivism, AppPeach, AppPeachLight) { /* Handle Life Skills */ }
                 }
 
                 Spacer(Modifier.height(32.dp))
 
                 Text("Featured Lessons", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
                 Spacer(Modifier.height(12.dp))
-                LessonCard(Lesson("Basic ${selectedLanguage.name} Reading", "AUDIO"), onLessonClick)
-                Spacer(Modifier.height(16.dp))
-                LessonCard(Lesson("Everyday Greetings", "VIDEO"), onLessonClick)
+                
+                // Example data based on selected language
+                val languageSpecificLessons = getLessonsForLanguage(selectedLanguage.name)
+                languageSpecificLessons.forEach { lesson ->
+                    LessonCard(lesson, onLessonClick)
+                    Spacer(Modifier.height(16.dp))
+                }
             }
         }
+    }
+}
+
+private fun getLessonsForLanguage(language: String): List<Lesson> {
+    return when (language) {
+        "Punjabi" -> listOf(
+            Lesson("Basic Punjabi Phrases", "AUDIO"),
+            Lesson("Colors in Punjabi", "VIDEO"),
+            Lesson("Family Members Vocabulary", "AUDIO")
+        )
+        "Urdu" -> listOf(
+            Lesson("Urdu Alphabet Basics", "VIDEO"),
+            Lesson("Common Urdu Greetings", "AUDIO"),
+            Lesson("Numbers 1-20 in Urdu", "AUDIO")
+        )
+        "Sindhi" -> listOf(
+            Lesson("Sindhi Basic Greetings", "AUDIO"),
+            Lesson("Essential Sindhi Verbs", "VIDEO"),
+            Lesson("Sindhi Script Introduction", "AUDIO")
+        )
+        "Pashto" -> listOf(
+            Lesson("Pashto Daily Life Words", "AUDIO"),
+            Lesson("Travel Phrases in Pashto", "VIDEO"),
+            Lesson("Pashto Politeness Marker", "AUDIO")
+        )
+        "Balochi" -> listOf(
+            Lesson("Introduction to Balochi", "AUDIO"),
+            Lesson("Balochi Food Names", "VIDEO"),
+            Lesson("Telling Time in Balochi", "AUDIO")
+        )
+        "Saraiki" -> listOf(
+            Lesson("Saraiki Basic Conversational", "AUDIO"),
+            Lesson("Saraiki Poetry Basics", "VIDEO"),
+            Lesson("Nature Words in Saraiki", "AUDIO")
+        )
+        else -> listOf(
+            Lesson("Basic Phrases", "AUDIO"),
+            Lesson("Common Vocabulary", "VIDEO")
+        )
     }
 }
 
@@ -215,7 +260,7 @@ fun LanguageSurface(name: String, nativeName: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun CategoryItem(title: String, icon: ImageVector, color: Color, bgColor: Color) {
+fun CategoryItem(title: String, icon: ImageVector, color: Color, bgColor: Color, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.width(90.dp)
@@ -224,7 +269,7 @@ fun CategoryItem(title: String, icon: ImageVector, color: Color, bgColor: Color)
             modifier = Modifier.size(80.dp),
             shape = RoundedCornerShape(20.dp),
             color = bgColor,
-            onClick = { /* Handle Category click if needed */ }
+            onClick = onClick
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
