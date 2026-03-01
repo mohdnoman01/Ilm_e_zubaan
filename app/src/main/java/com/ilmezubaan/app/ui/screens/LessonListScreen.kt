@@ -5,66 +5,42 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Headset
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ilmezubaan.app.ui.theme.*
+import com.ilmezubaan.app.ui.viewmodel.ConceptViewModel
 
 data class Lesson(
     val title: String,
-    val type: String // "AUDIO" or "VIDEO"
+    val type: String,
+    val conceptId: String? = null
 )
 
 @Composable
 fun LessonListScreen(
     language: String,
-    onLessonClick: (Lesson) -> Unit
+    onLessonClick: (Lesson) -> Unit,
+    conceptViewModel: ConceptViewModel
 ) {
-    val pashtoLessons = listOf(
-        Lesson("Basic Greetings", "AUDIO"),
-        Lesson("Self Introduction", "VIDEO"),
-        Lesson("Common Questions", "AUDIO"),
-        Lesson("Numbers 1-10", "VIDEO"),
-        Lesson("Family Members", "AUDIO")
-    )
+    val concepts by conceptViewModel.concepts.collectAsState()
+    
+    // Filter concepts by level/difficulty to create "Lessons"
+    val beginnerConcepts = concepts.filter { it.difficultyLevel == "1" || it.category == "Basic" }
+    val intermediateConcepts = concepts.filter { it.category == "Intermediate" }
+    val advancedConcepts = concepts.filter { it.category == "Advanced" }
 
-    val punjabiLessons = listOf(
-        Lesson("Basic Greetings", "AUDIO"),
-        Lesson("Family Relations", "VIDEO"),
-        Lesson("Common Phrases", "AUDIO"),
-        Lesson("Numbers 1-10", "VIDEO"),
-        Lesson("Colors in Punjabi", "AUDIO")
+    val lessons = listOf(
+        Lesson("Beginner: Core Vocabulary", "AUDIO"),
+        Lesson("Intermediate: Daily Phrases", "VIDEO"),
+        Lesson("Advanced: Complex Concepts", "AUDIO")
     )
-
-    val sindhiLessons = listOf(
-        Lesson("Basic Greetings", "AUDIO"),
-        Lesson("Daily Phrases", "VIDEO"),
-        Lesson("Numbers 1-10", "AUDIO"),
-        Lesson("Market Talk", "VIDEO"),
-        Lesson("Time & Days", "AUDIO")
-    )
-
-    val lessons = when (language.lowercase()) {
-        "pashto" -> pashtoLessons
-        "punjabi" -> punjabiLessons
-        "sindhi" -> sindhiLessons
-        else -> listOf(
-            Lesson("Basic Reading", "AUDIO"),
-            Lesson("Daily Conversation", "VIDEO"),
-            Lesson("Health & Hygiene", "AUDIO"),
-            Lesson("Community Rules", "VIDEO"),
-            Lesson("Basic Math", "AUDIO")
-        )
-    }
 
     Scaffold(
         topBar = {
@@ -75,16 +51,16 @@ fun LessonListScreen(
                     .padding(horizontal = 16.dp, vertical = 24.dp)
             ) {
                 Text(
-                    text = "Lessons in $language",
+                    text = "$language Learning",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = TextDark
                 )
                 Text(
-                    text = "Pick a lesson to start learning",
-                    fontSize = 16.sp,
-                    color = TextGrey,
-                    fontWeight = FontWeight.Medium
+                    text = "Concepts synced: ${concepts.size}",
+                    fontSize = 14.sp,
+                    color = AppTeal,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -97,6 +73,9 @@ fun LessonListScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp)
         ) {
+            Text("Learning Tracks", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
+            Spacer(Modifier.height(16.dp))
+
             lessons.forEach { lesson ->
                 LessonCard(lesson, onLessonClick)
                 Spacer(Modifier.height(16.dp))

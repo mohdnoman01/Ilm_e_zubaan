@@ -10,12 +10,23 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.google.firebase.firestore.FirebaseFirestore
 import com.ilmezubaan.app.data.local.AppDatabase
+import com.ilmezubaan.app.data.repository.ConceptRepository
 import com.ilmezubaan.app.data.repository.UserStatsRepository
-import com.ilmezubaan.app.ui.screens.*
-import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
+import com.ilmezubaan.app.ui.screens.AudioVideoScreen
+import com.ilmezubaan.app.ui.screens.HomeScreen
+import com.ilmezubaan.app.ui.screens.LanguageSelectScreen
+import com.ilmezubaan.app.ui.screens.LessonListScreen
+import com.ilmezubaan.app.ui.screens.LiteracyScreen
+import com.ilmezubaan.app.ui.screens.LoginScreen
+import com.ilmezubaan.app.ui.screens.ProfileScreen
+import com.ilmezubaan.app.ui.screens.VocabularyScreen
+import com.ilmezubaan.app.ui.viewmodel.ConceptViewModel
+import com.ilmezubaan.app.ui.viewmodel.ConceptViewModelFactory
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModelFactory
+import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
 
 @Composable
 fun AppNavGraph() {
@@ -23,11 +34,19 @@ fun AppNavGraph() {
     val context = LocalContext.current
     
     val database = AppDatabase.getDatabase(context)
-    val repository = UserStatsRepository(database.userStatsDao())
+    val userStatsRepository = UserStatsRepository(database.userStatsDao())
+    val conceptRepository = ConceptRepository(
+        conceptDao = database.conceptDao(),
+        metadataDao = database.languageMetadataDao(),
+        firestore = FirebaseFirestore.getInstance()
+    )
     
     val languageViewModel: LanguageViewModel = viewModel()
     val homeViewModel: HomeViewModel = viewModel(
-        factory = HomeViewModelFactory(repository)
+        factory = HomeViewModelFactory(userStatsRepository)
+    )
+    val conceptViewModel: ConceptViewModel = viewModel(
+        factory = ConceptViewModelFactory(conceptRepository)
     )
 
     NavHost(
@@ -68,22 +87,23 @@ fun AppNavGraph() {
             )
         }
 
-        composable(NavRoutes.LITERACY) {
+        composable(NavRoutes.VOCABULARY) {
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
-            LiteracyScreen(
+            VocabularyScreen(
                 language = selectedLanguage.name,
                 onBack = { navController.popBackStack() },
                 onLessonClick = { lesson ->
                     navController.navigate(
                         "${NavRoutes.PLAYER}/${lesson.title}/${lesson.type}"
                     )
-                }
+                },
+                conceptViewModel = conceptViewModel
             )
         }
 
-        composable(NavRoutes.VOCABULARY) {
+        composable(NavRoutes.LITERACY) {
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
-            VocabularyScreen(
+            LiteracyScreen(
                 language = selectedLanguage.name,
                 onBack = { navController.popBackStack() },
                 onLessonClick = { lesson ->
@@ -123,7 +143,8 @@ fun AppNavGraph() {
                     navController.navigate(
                         "${NavRoutes.PLAYER}/${lesson.title}/${lesson.type}"
                     )
-                }
+                },
+                conceptViewModel = conceptViewModel
             )
         }
 
@@ -136,11 +157,14 @@ fun AppNavGraph() {
         ) { backStackEntry ->
             val title = backStackEntry.arguments?.getString("title") ?: "Lesson"
             val type = backStackEntry.arguments?.getString("type") ?: "AUDIO"
+            val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
 
             AudioVideoScreen(
                 lessonTitle = title,
                 lessonType = type,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                conceptViewModel = conceptViewModel,
+                language = selectedLanguage.name
             )
         }
     }

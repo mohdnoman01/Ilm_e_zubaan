@@ -4,12 +4,25 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+import com.ilmezubaan.app.data.local.converters.LanguageConverter
 import com.ilmezubaan.app.data.local.dao.UserStatsDao
+import com.ilmezubaan.app.data.local.dao.ConceptDao
+import com.ilmezubaan.app.data.local.dao.LanguageMetadataDao
 import com.ilmezubaan.app.data.local.entities.UserStats
+import com.ilmezubaan.app.data.local.entities.ConceptEntity
+import com.ilmezubaan.app.data.local.entities.LanguageMetadataEntity
 
-@Database(entities = [UserStats::class], version = 1, exportSchema = false)
+@Database(
+    entities = [UserStats::class, ConceptEntity::class, LanguageMetadataEntity::class],
+    version = 5,
+    exportSchema = false
+)
+@TypeConverters(LanguageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun userStatsDao(): UserStatsDao
+    abstract fun conceptDao(): ConceptDao
+    abstract fun languageMetadataDao(): LanguageMetadataDao
 
     companion object {
         @Volatile
@@ -21,7 +34,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "ilmezubaan_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }
