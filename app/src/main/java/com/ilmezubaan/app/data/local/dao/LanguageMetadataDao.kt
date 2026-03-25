@@ -11,4 +11,7 @@ interface LanguageMetadataDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMetadata(metadata: LanguageMetadataEntity)
+
+    @Query("DELETE FROM language_metadata")
+    suspend fun deleteAll()
 }

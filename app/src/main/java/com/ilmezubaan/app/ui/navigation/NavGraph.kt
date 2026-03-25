@@ -1,8 +1,10 @@
 package com.ilmezubaan.app.ui.navigation
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -10,7 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.database.FirebaseDatabase
 import com.ilmezubaan.app.data.local.AppDatabase
 import com.ilmezubaan.app.data.repository.ConceptRepository
 import com.ilmezubaan.app.data.repository.UserStatsRepository
@@ -20,6 +22,7 @@ import com.ilmezubaan.app.ui.screens.LanguageSelectScreen
 import com.ilmezubaan.app.ui.screens.LessonListScreen
 import com.ilmezubaan.app.ui.screens.LiteracyScreen
 import com.ilmezubaan.app.ui.screens.LoginScreen
+import com.ilmezubaan.app.ui.screens.PrivacySettingsScreen
 import com.ilmezubaan.app.ui.screens.ProfileScreen
 import com.ilmezubaan.app.ui.screens.VocabularyScreen
 import com.ilmezubaan.app.ui.viewmodel.ConceptViewModel
@@ -27,21 +30,33 @@ import com.ilmezubaan.app.ui.viewmodel.ConceptViewModelFactory
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModelFactory
 import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
+import com.ilmezubaan.app.ui.viewmodel.LanguageViewModelFactory
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     
     val database = AppDatabase.getDatabase(context)
-    val userStatsRepository = UserStatsRepository(database.userStatsDao())
+    val userStatsRepository = UserStatsRepository(
+        database.userStatsDao(),
+        database.conceptDao(),
+        database.languageMetadataDao()
+    )
+    
+    val firebaseDatabase = FirebaseDatabase.getInstance("https://ilm-e-zubaan-default-rtdb.asia-southeast1.firebasedatabase.app/")
+    
     val conceptRepository = ConceptRepository(
         conceptDao = database.conceptDao(),
         metadataDao = database.languageMetadataDao(),
-        firestore = FirebaseFirestore.getInstance()
+        firebaseDatabase = firebaseDatabase
     )
     
-    val languageViewModel: LanguageViewModel = viewModel()
+    val languageViewModel: LanguageViewModel = viewModel(
+        factory = LanguageViewModelFactory(userStatsRepository)
+    )
     val homeViewModel: HomeViewModel = viewModel(
         factory = HomeViewModelFactory(userStatsRepository)
     )
@@ -54,10 +69,23 @@ fun AppNavGraph() {
         startDestination = NavRoutes.LOGIN
     ) {
         composable(NavRoutes.LOGIN) {
+            val userStats by homeViewModel.userStats.collectAsState()
+            
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(NavRoutes.HOME) {
-                        popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                onLoginSuccess = { isNewUser ->
+                    if (isNewUser) {
+                        navController.navigate(NavRoutes.LANGUAGE_NATIVE) {
+                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        }
+                    } else if (userStats?.selectedLanguageName != null && userStats?.nativeLanguageName != null) {
+                        navController.navigate(NavRoutes.HOME) {
+                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        }
+                    } else {
+                        // Fallback if metadata is missing
+                        navController.navigate(NavRoutes.LANGUAGE_NATIVE) {
+                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        }
                     }
                 }
             )
@@ -66,12 +94,10 @@ fun AppNavGraph() {
         composable(NavRoutes.HOME) {
             HomeScreen(
                 onLanguageClick = {
-                    navController.navigate(NavRoutes.LANGUAGE)
+                    navController.navigate(NavRoutes.LANGUAGE_LEARN)
                 },
-                onLessonClick = { lesson ->
-                    navController.navigate(
-                        "${NavRoutes.PLAYER}/${lesson.title}/${lesson.type}"
-                    )
+                onLessonClick = { language ->
+                    navController.navigate("${NavRoutes.LESSONS}/$language")
                 },
                 onProfileClick = {
                     navController.navigate(NavRoutes.PROFILE)
@@ -87,15 +113,49 @@ fun AppNavGraph() {
             )
         }
 
+        composable(NavRoutes.LANGUAGE_NATIVE) {
+            LanguageSelectScreen(
+                title = "What is your native language?",
+                subtitle = "We will use this to explain words to you",
+                onLanguageChosen = { 
+                    navController.navigate(NavRoutes.LANGUAGE_LEARN)
+                },
+                onSelect = { language ->
+                    languageViewModel.setNativeLanguage(language)
+                },
+                viewModel = languageViewModel
+            )
+        }
+
+        composable(NavRoutes.LANGUAGE_LEARN) {
+            LanguageSelectScreen(
+                title = "What language do you want to learn?",
+                subtitle = "Select the regional language you're interested in",
+                onLanguageChosen = { 
+                    navController.navigate(NavRoutes.HOME) {
+                        popUpTo(NavRoutes.LANGUAGE_NATIVE) { inclusive = true }
+                        popUpTo(NavRoutes.LANGUAGE_LEARN) { inclusive = true }
+                    }
+                },
+                onSelect = { language ->
+                    languageViewModel.selectLanguage(language)
+                },
+                viewModel = languageViewModel
+            )
+        }
+
         composable(NavRoutes.VOCABULARY) {
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
+            val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
+            
             VocabularyScreen(
                 language = selectedLanguage.name,
+                nativeLanguage = nativeLanguage?.name ?: "English",
                 onBack = { navController.popBackStack() },
                 onLessonClick = { lesson ->
-                    navController.navigate(
-                        "${NavRoutes.PLAYER}/${lesson.title}/${lesson.type}"
-                    )
+                    val encodedTitle = Uri.encode(lesson.title)
+                    val encodedType = Uri.encode(lesson.type)
+                    navController.navigate("${NavRoutes.PLAYER}/$encodedTitle/$encodedType")
                 },
                 conceptViewModel = conceptViewModel
             )
@@ -107,25 +167,40 @@ fun AppNavGraph() {
                 language = selectedLanguage.name,
                 onBack = { navController.popBackStack() },
                 onLessonClick = { lesson ->
-                    navController.navigate(
-                        "${NavRoutes.PLAYER}/${lesson.title}/${lesson.type}"
-                    )
+                    val encodedTitle = Uri.encode(lesson.title)
+                    val encodedType = Uri.encode(lesson.type)
+                    navController.navigate("${NavRoutes.PLAYER}/$encodedTitle/$encodedType")
                 }
             )
         }
 
         composable(NavRoutes.PROFILE) {
+            val userStats by homeViewModel.userStats.collectAsState()
             ProfileScreen(
-                onBack = { navController.popBackStack() }
+                userStats = userStats ?: com.ilmezubaan.app.data.local.entities.UserStats(),
+                onBack = { navController.popBackStack() },
+                onLogout = {
+                    navController.navigate(NavRoutes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onPrivacySettingsClick = {
+                    navController.navigate(NavRoutes.PRIVACY_SETTINGS)
+                },
+                onClearData = {
+                    scope.launch {
+                        userStatsRepository.clearAllData()
+                        navController.navigate(NavRoutes.LOGIN) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
             )
         }
 
-        composable(NavRoutes.LANGUAGE) {
-            LanguageSelectScreen(
-                onLanguageChosen = { languageName ->
-                    navController.navigate("${NavRoutes.LESSONS}/$languageName")
-                },
-                viewModel = languageViewModel
+        composable(NavRoutes.PRIVACY_SETTINGS) {
+            PrivacySettingsScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -140,9 +215,9 @@ fun AppNavGraph() {
             LessonListScreen(
                 language = language,
                 onLessonClick = { lesson ->
-                    navController.navigate(
-                        "${NavRoutes.PLAYER}/${lesson.title}/${lesson.type}"
-                    )
+                    val encodedTitle = Uri.encode(lesson.title)
+                    val encodedType = Uri.encode(lesson.type)
+                    navController.navigate("${NavRoutes.PLAYER}/$encodedTitle/$encodedType")
                 },
                 conceptViewModel = conceptViewModel
             )

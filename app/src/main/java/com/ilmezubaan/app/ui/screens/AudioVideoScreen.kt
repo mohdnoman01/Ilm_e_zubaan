@@ -1,5 +1,7 @@
 package com.ilmezubaan.app.ui.screens
 
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,15 +9,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Headset
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,12 +34,20 @@ fun AudioVideoScreen(
     conceptViewModel: ConceptViewModel,
     language: String
 ) {
-    val concepts by conceptViewModel.concepts.collectAsState()
-    val sourceLanguage by conceptViewModel.sourceLanguage.collectAsState()
+    val context = LocalContext.current
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
     
-    // For this refactor, we show "Intro" content if it's the first lesson
-    // or the "History" content based on the selected language.
+    // Find the lesson in recent or passed data (In a real app, you'd fetch by ID)
+    // For now, we use the title passed in Nav
     
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -54,83 +65,85 @@ fun AudioVideoScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Language Intro Video Section
+            // Main Content Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Black)
+                    .height(300.dp),
+                shape = RoundedCornerShape(32.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                    Icon(
-                        Icons.Default.PlayCircle,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(64.dp)
-                    )
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
-                        "Intro: History of $language",
-                        color = Color.White,
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
-                        fontSize = 14.sp
+                        text = lessonTitle,
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = AppTeal
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = "Pronunciation Guide",
+                        fontSize = 16.sp,
+                        color = TextGrey
                     )
                 }
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(48.dp))
 
-            // 2. Cultural Context
-            Text("Cultural Context", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Spacer(Modifier.height(12.dp))
-            
-            InfoSection(
-                icon = Icons.Default.History,
-                title = "History & Region",
-                description = "Learn about the origins of $language in the South Asian region and the vibrant lifestyle of its native speakers."
-            )
+            // Audio Controls
+            Surface(
+                modifier = Modifier.size(80.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = AppTeal,
+                onClick = {
+                    if (isPlaying) {
+                        mediaPlayer?.pause()
+                        isPlaying = false
+                    } else {
+                        // In a real scenario, get URL from your Lesson object
+                        // For testing, we can use a dummy or the one from Firebase if available
+                        // val url = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+                        
+                        // if (mediaPlayer == null) {
+                        //    mediaPlayer = MediaPlayer().apply {
+                        //        setAudioAttributes(AudioAttributes.Builder()
+                        //            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        //            .build())
+                        //        setDataSource(url)
+                        //        prepare()
+                        //    }
+                        // }
+                        // mediaPlayer?.start()
+                        // isPlaying = true
+                    }
+                }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
             
             Spacer(Modifier.height(16.dp))
-
-            InfoSection(
-                icon = Icons.Default.Language,
-                title = "Real-life Examples",
-                description = "We use common phrases and words that you will hear in daily conversations, making learning practical and fast."
+            Text(
+                text = if (isPlaying) "Playing Audio..." else "Tap to Listen",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                color = TextDark
             )
-
-            Spacer(Modifier.height(32.dp))
-
-            // 3. Start Learning Button
-            Button(
-                onClick = { /* Start the actual lesson content playback */ },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppTeal)
-            ) {
-                Text("Start Lesson", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-fun InfoSection(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, description: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Surface(
-            modifier = Modifier.size(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = AppTealLight.copy(alpha = 0.3f)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(icon, contentDescription = null, tint = AppTeal, modifier = Modifier.size(24.dp))
-            }
-        }
-        Spacer(Modifier.width(16.dp))
-        Column {
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextDark)
-            Text(description, fontSize = 14.sp, color = TextGrey)
         }
     }
 }

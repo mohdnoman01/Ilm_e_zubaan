@@ -1,15 +1,35 @@
 package com.ilmezubaan.app.data.repository
 
 import com.ilmezubaan.app.data.local.dao.UserStatsDao
+import com.ilmezubaan.app.data.local.dao.ConceptDao
+import com.ilmezubaan.app.data.local.dao.LanguageMetadataDao
 import com.ilmezubaan.app.data.local.entities.UserStats
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
-class UserStatsRepository(private val userStatsDao: UserStatsDao) {
+class UserStatsRepository(
+    private val userStatsDao: UserStatsDao,
+    private val conceptDao: ConceptDao,
+    private val languageMetadataDao: LanguageMetadataDao
+) {
 
     val userStats: Flow<UserStats?> = userStatsDao.getUserStats()
+
+    suspend fun updateNativeLanguage(languageName: String) {
+        val currentStats = userStatsDao.getUserStats().first() ?: UserStats()
+        userStatsDao.insertUserStats(
+            currentStats.copy(nativeLanguageName = languageName)
+        )
+    }
+
+    suspend fun updateSelectedLanguage(languageName: String) {
+        val currentStats = userStatsDao.getUserStats().first() ?: UserStats()
+        userStatsDao.insertUserStats(
+            currentStats.copy(selectedLanguageName = languageName)
+        )
+    }
 
     suspend fun updateLessonProgress(title: String, type: String, progress: Float) {
         val currentStats = userStatsDao.getUserStats().first() ?: UserStats()
@@ -33,7 +53,6 @@ class UserStatsRepository(private val userStatsDao: UserStatsDao) {
 
         val lastOpen = currentStats.lastAppOpenDate
         if (lastOpen == 0L) {
-            // First time opening the app
             userStatsDao.insertUserStats(
                 currentStats.copy(
                     currentStreak = 1,
@@ -48,9 +67,9 @@ class UserStatsRepository(private val userStatsDao: UserStatsDao) {
         val diffInDays = TimeUnit.MILLISECONDS.toDays(diffInMs)
 
         val newStreak = when {
-            diffInDays == 0L -> currentStats.currentStreak // Already opened today
-            diffInDays == 1L -> currentStats.currentStreak + 1 // Consecutive day
-            else -> 1 // Streak broken
+            diffInDays == 0L -> currentStats.currentStreak
+            diffInDays == 1L -> currentStats.currentStreak + 1
+            else -> 1
         }
 
         userStatsDao.insertUserStats(
@@ -60,5 +79,11 @@ class UserStatsRepository(private val userStatsDao: UserStatsDao) {
                 xpPoints = currentStats.xpPoints + if (diffInDays > 0) 10 else 0
             )
         )
+    }
+
+    suspend fun clearAllData() {
+        userStatsDao.deleteAll()
+        conceptDao.deleteAll()
+        languageMetadataDao.deleteAll()
     }
 }

@@ -1,7 +1,6 @@
 package com.ilmezubaan.app.ui.screens
 
 import android.content.Context
-import android.util.Log
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -40,7 +39,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: (isNewUser: Boolean) -> Unit
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -89,7 +88,7 @@ fun LoginScreen(
                 
                 coroutineScope.launch {
                     userStatsDao.insertUserStats(UserStats(userName = name))
-                    onLoginSuccess()
+                    onLoginSuccess(true) // New user (Sign Up)
                 }
             }
         } else {
@@ -101,7 +100,7 @@ fun LoginScreen(
             } else if (savedPassword == password) {
                 coroutineScope.launch {
                     userStatsDao.insertUserStats(UserStats(userName = savedName ?: "User"))
-                    onLoginSuccess()
+                    onLoginSuccess(false) // Existing user (Login)
                 }
             } else {
                 errorMessage = "Invalid credentials"
@@ -155,7 +154,6 @@ fun LoginScreen(
         }
 
         if (isSignUp) {
-            // Name Input
             OutlinedTextField(
                 value = name,
                 onValueChange = { 
@@ -178,7 +176,6 @@ fun LoginScreen(
         }
 
         if (selectedTabIndex == 0) {
-            // Email Input
             OutlinedTextField(
                 value = email,
                 onValueChange = { 
@@ -198,7 +195,6 @@ fun LoginScreen(
                 )
             )
         } else {
-            // Phone Input
             OutlinedTextField(
                 value = phoneNumber,
                 onValueChange = { input ->
@@ -234,10 +230,8 @@ fun LoginScreen(
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                val description = if (passwordVisible) "Hide password" else "Show password"
-                
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(imageVector = image, contentDescription = description)
+                    Icon(imageVector = image, contentDescription = null)
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -268,10 +262,8 @@ fun LoginScreen(
                 visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     val image = if (confirmPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    val description = if (confirmPasswordVisible) "Hide password" else "Show password"
-                    
                     IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                        Icon(imageVector = image, contentDescription = description)
+                        Icon(imageVector = image, contentDescription = null)
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -301,7 +293,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = handleAction as () -> Unit,
+            onClick = { handleAction() },
             modifier = Modifier.fillMaxWidth(),
             shape = MaterialTheme.shapes.medium
         ) {
@@ -317,15 +309,12 @@ fun LoginScreen(
             phoneNumber = ""
             password = ""
             confirmPassword = ""
-            passwordVisible = false
-            confirmPasswordVisible = false
         }) {
             Text(if (isSignUp) "Already have an account? Login" else "New user? Create an account")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Social Media Options
         Text("Or continue with", fontSize = 14.sp, color = Color.Gray)
         Spacer(modifier = Modifier.height(16.dp))
         Row(
@@ -334,7 +323,7 @@ fun LoginScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             SocialIcon(
-                iconUrl = "https://www.google.com/favicon.ico",
+                iconUrl = "google",
                 onClick = { 
                     coroutineScope.launch {
                         try {
@@ -349,7 +338,7 @@ fun LoginScreen(
                                 .build()
 
                             val result = credentialManager.getCredential(context, request)
-                            onLoginSuccess()
+                            onLoginSuccess(false) // Assume social login is for existing or doesn't force language select immediately
                         } catch (e: GetCredentialException) {
                             errorMessage = "Google Sign In Failed: ${e.message}"
                         }
@@ -358,8 +347,8 @@ fun LoginScreen(
             )
             Spacer(modifier = Modifier.width(32.dp))
             SocialIcon(
-                iconUrl = "https://www.facebook.com/favicon.ico",
-                onClick = { onLoginSuccess() }
+                iconUrl = "facebook",
+                onClick = { onLoginSuccess(false) }
             )
         }
     }
@@ -377,10 +366,10 @@ fun SocialIcon(iconUrl: String, onClick: () -> Unit) {
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = if (iconUrl.contains("google")) "G" else "F",
+                text = if (iconUrl == "google") "G" else "F",
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
-                color = if (iconUrl.contains("google")) Color(0xFFDB4437) else Color(0xFF4267B2)
+                color = if (iconUrl == "google") Color(0xFFDB4437) else Color(0xFF4267B2)
             )
         }
     }

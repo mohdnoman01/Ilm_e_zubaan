@@ -16,5 +16,7 @@ data class ConceptEntity(
 data class ConceptLanguageData(
     val script: String,
     val roman: String,
-    val audioUrl: String? = null
+    val audioUrl: String? = null,
+    val example: String? = null,
+    val exampleMeaning: String? = null
 )

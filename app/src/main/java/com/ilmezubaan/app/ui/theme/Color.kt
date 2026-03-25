@@ -14,6 +14,19 @@ val BackgroundWhite = Color(0xFFFFFFFF)
 val SurfaceLightTeal = Color(0xFFF0F9FA)
 val TextDark = Color(0xFF1A1C1E)
 val TextGrey = Color(0xFF74777F)
+val TextWhite = Color(0xFFFFFFFF)
+
+// Dark Theme Colors
+val DarkBg = Color(0xFF050404)
+val DarkSurface = Color(0xFF1A1C1E)
+val DarkSurfaceLighter = Color(0xFF25282B)
+
+// Neon Colors for Accents
+val NeonPurple = Color(0xFFB066FF)
+val NeonCyan = Color(0xFF00E5FF)
+val NeonGreen = Color(0xFF00E676)
+val NeonRed = Color(0xFFFF5252)
+val NeonOrange = Color(0xFFFFAB40)
 
 // Material 3 Mappings
 val Primary = AppTeal

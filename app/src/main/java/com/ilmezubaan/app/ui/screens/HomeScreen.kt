@@ -1,12 +1,15 @@
 package com.ilmezubaan.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -15,19 +18,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ilmezubaan.app.data.local.entities.UserStats
+import com.ilmezubaan.app.data.model.Lesson
 import com.ilmezubaan.app.ui.theme.*
-import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
+import com.ilmezubaan.app.ui.viewmodel.Language
+import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
 
 @Composable
 fun HomeScreen(
     onLanguageClick: () -> Unit,
-    onLessonClick: (Lesson) -> Unit,
+    onLessonClick: (String) -> Unit, // Changed to take language name for general list
     onProfileClick: () -> Unit,
     onLiteracyClick: () -> Unit,
     onVocabularyClick: () -> Unit,
@@ -35,311 +42,295 @@ fun HomeScreen(
     homeViewModel: HomeViewModel
 ) {
     val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
+    val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
     val userStats by homeViewModel.userStats.collectAsState()
-    val greeting = homeViewModel.getGreeting()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-    ) {
-        // Header Area with Dynamic Greeting and Stats
-        Box(
+    Scaffold(
+        bottomBar = {
+            BottomNavigationBar(onProfileClick = onProfileClick)
+        },
+        containerColor = DarkBg
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = MaterialTheme.colorScheme.background,
-                    shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp)
-                )
-                .padding(horizontal = 24.dp, vertical = 32.dp)
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
         ) {
-            Column {
+            // Header Section
+            HomeHeader(userName = userStats.userName, onProfileClick = onProfileClick)
+
+            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                // Learning Status Card
+                LearningStatusCard(
+                    native = nativeLanguage?.name ?: "Unknown",
+                    target = selectedLanguage.name,
+                    onLanguageClick = onLanguageClick
+                )
+
+                Spacer(Modifier.height(28.dp))
+
+                // Word of the Day
+                FeaturedWordCard(selectedLanguage.name)
+
+                Spacer(Modifier.height(28.dp))
+
+                // Lessons Shortcuts
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "$greeting, ${userStats.userName}",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark
-                        )
-                        Text(
-                            text = "Ready to improve your ${selectedLanguage.name} today?",
-                            fontSize = 16.sp,
-                            color = TextGrey
-                        )
-                    }
-                    IconButton(
-                        onClick = onProfileClick,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(AppTealLight.copy(alpha = 0.5f))
-                    ) {
-                        Icon(Icons.Default.Person, contentDescription = "Profile", tint = AppTeal)
+                    Text(
+                        "Mastery",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = TextWhite,
+                        fontWeight = FontWeight.Bold
+                    )
+                    TextButton(onClick = { onLessonClick(selectedLanguage.name) }) {
+                        Text("View All", color = NeonCyan, fontSize = 14.sp)
                     }
                 }
-
-                Spacer(Modifier.height(24.dp))
-
-                // Streak and XP Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    StatBadge(icon = Icons.Default.Whatshot, text = "${userStats.currentStreak} Day Streak", color = Color(0xFFFF5722))
-                    StatBadge(icon = Icons.Default.Star, text = "${userStats.xpPoints} XP", color = Color(0xFFFFC107))
-                }
-            }
-        }
-
-        // Main Content Card
-        Card(
-            modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(0.dp)
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
                 
-                // 1. Continue Learning Section
-                if (userStats.lastLessonTitle != null) {
-                    Text("Continue Learning", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                    Spacer(Modifier.height(12.dp))
-                    ContinueLearningCard(
-                        title = userStats.lastLessonTitle!!,
-                        progress = userStats.lastLessonProgress,
-                        type = userStats.lastLessonType ?: "AUDIO",
-                        onResume = { 
-                            onLessonClick(Lesson(userStats.lastLessonTitle!!, userStats.lastLessonType ?: "AUDIO"))
-                        }
-                    )
-                    Spacer(Modifier.height(32.dp))
-                }
+                Spacer(Modifier.height(16.dp))
 
-                Text("Current Language", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                Spacer(Modifier.height(12.dp))
-                LanguageSurface(selectedLanguage.name, selectedLanguage.nativeName, onLanguageClick)
+                NavigationGrid(
+                    onLiteracyClick = onLiteracyClick,
+                    onVocabularyClick = onVocabularyClick
+                )
 
                 Spacer(Modifier.height(32.dp))
-
-                Text("Categories", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    CategoryItem("Literacy", Icons.Default.MenuBook, AppTeal, AppTealLight, onLiteracyClick)
-                    CategoryItem("Vocabulary", Icons.Default.Translate, AppOrange, AppOrangeLight, onVocabularyClick)
-                    CategoryItem("Life Skills", Icons.Default.VolunteerActivism, AppPeach, AppPeachLight) { /* Handle Life Skills */ }
-                }
-
-                Spacer(Modifier.height(32.dp))
-
-                Text("Featured Lessons", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextDark)
-                Spacer(Modifier.height(12.dp))
-                
-                // Example data based on selected language
-                val languageSpecificLessons = getLessonsForLanguage(selectedLanguage.name)
-                languageSpecificLessons.forEach { lesson ->
-                    LessonCard(lesson, onLessonClick)
-                    Spacer(Modifier.height(16.dp))
-                }
-            }
-        }
-    }
-}
-
-private fun getLessonsForLanguage(language: String): List<Lesson> {
-    return when (language) {
-        "Punjabi" -> listOf(
-            Lesson("Basic Punjabi Phrases", "AUDIO"),
-            Lesson("Colors in Punjabi", "VIDEO"),
-            Lesson("Family Members Vocabulary", "AUDIO")
-        )
-        "Urdu" -> listOf(
-            Lesson("Urdu Alphabet Basics", "VIDEO"),
-            Lesson("Common Urdu Greetings", "AUDIO"),
-            Lesson("Numbers 1-20 in Urdu", "AUDIO")
-        )
-        "Sindhi" -> listOf(
-            Lesson("Sindhi Basic Greetings", "AUDIO"),
-            Lesson("Essential Sindhi Verbs", "VIDEO"),
-            Lesson("Sindhi Script Introduction", "AUDIO")
-        )
-        "Pashto" -> listOf(
-            Lesson("Pashto Daily Life Words", "AUDIO"),
-            Lesson("Travel Phrases in Pashto", "VIDEO"),
-            Lesson("Pashto Politeness Marker", "AUDIO")
-        )
-        "Balochi" -> listOf(
-            Lesson("Introduction to Balochi", "AUDIO"),
-            Lesson("Balochi Food Names", "VIDEO"),
-            Lesson("Telling Time in Balochi", "AUDIO")
-        )
-        "Saraiki" -> listOf(
-            Lesson("Saraiki Basic Conversational", "AUDIO"),
-            Lesson("Saraiki Poetry Basics", "VIDEO"),
-            Lesson("Nature Words in Saraiki", "AUDIO")
-        )
-        else -> listOf(
-            Lesson("Basic Phrases", "AUDIO"),
-            Lesson("Common Vocabulary", "VIDEO")
-        )
-    }
-}
-
-@Composable
-fun StatBadge(icon: ImageVector, text: String, color: Color) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = color.copy(alpha = 0.1f),
-        modifier = Modifier.height(40.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(text, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = color)
-        }
-    }
-}
-
-@Composable
-fun ContinueLearningCard(title: String, progress: Float, type: String, onResume: () -> Unit) {
-    Surface(
-        onClick = onResume,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                    color = AppTeal,
-                    trackColor = Color.LightGray
-                )
-                Spacer(Modifier.height(4.dp))
-                Text("${(progress * 100).toInt()}% complete", fontSize = 12.sp, color = TextGrey)
-            }
-            Spacer(Modifier.width(16.dp))
-            Button(onClick = onResume, shape = RoundedCornerShape(12.dp)) {
-                Text("Resume")
             }
         }
     }
 }
 
 @Composable
-fun LanguageSurface(name: String, nativeName: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(64.dp),
-        shape = RoundedCornerShape(16.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        color = AppTealLight.copy(alpha = 0.2f)
+fun HomeHeader(userName: String, onProfileClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Language, contentDescription = null, tint = AppTeal)
-            Spacer(Modifier.width(12.dp))
-            Text("$name ($nativeName)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.weight(1f))
-            Text("Change", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AppTeal)
-        }
-    }
-}
-
-@Composable
-fun CategoryItem(title: String, icon: ImageVector, color: Color, bgColor: Color, onClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(90.dp)
-    ) {
-        Surface(
-            modifier = Modifier.size(80.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = bgColor,
-            onClick = onClick
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = color,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = title, 
-            fontSize = 15.sp, 
-            fontWeight = FontWeight.Medium,
-            color = TextDark,
-            maxLines = 1
-        )
-    }
-}
-
-@Composable
-fun LessonCard(lesson: Lesson, onClick: (Lesson) -> Unit) {
-    Surface(
-        onClick = { onClick(lesson) },
-        modifier = Modifier.fillMaxWidth().heightIn(min = 88.dp),
-        shape = RoundedCornerShape(20.dp),
-        border = CardDefaults.outlinedCardBorder(),
-        color = Color.White,
-        tonalElevation = 2.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                modifier = Modifier.size(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = if (lesson.type == "VIDEO") AppOrangeLight else AppTealLight
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = if (lesson.type == "VIDEO") Icons.Default.PlayArrow else Icons.Default.Headset,
-                        contentDescription = null,
-                        tint = if (lesson.type == "VIDEO") AppOrange else AppTeal,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-            Spacer(Modifier.width(20.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = lesson.title, 
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold, 
-                    color = TextDark
-                )
-                Text(
-                    text = if (lesson.type == "VIDEO") "Watch Video" else "Listen Audio",
-                    fontSize = 15.sp,
-                    color = TextGrey,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null,
-                tint = TextGrey.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp)
+        Column {
+            Text(
+                "Assalam-u-Alaikum,",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextGrey
+            )
+            Text(
+                userName,
+                style = MaterialTheme.typography.headlineSmall,
+                color = TextWhite,
+                fontWeight = FontWeight.Bold
             )
         }
+        
+        Surface(
+            modifier = Modifier.size(44.dp),
+            shape = CircleShape,
+            color = DarkSurface,
+            onClick = onProfileClick
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Person, contentDescription = "Profile", tint = NeonPurple)
+            }
+        }
+    }
+}
+
+@Composable
+fun LearningStatusCard(native: String, target: String, onLanguageClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        color = DarkSurface,
+        onClick = onLanguageClick
+    ) {
+        Row(
+            modifier = Modifier.padding(24.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LanguageBadge(native, NeonCyan)
+                Icon(
+                    Icons.Default.SwapHoriz,
+                    contentDescription = null,
+                    tint = TextGrey,
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                LanguageBadge(target, NeonPurple)
+            }
+            Icon(Icons.Default.Edit, contentDescription = "Change", tint = TextGrey, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+@Composable
+fun LanguageBadge(name: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(color.copy(0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(name.take(1), color = color, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(name, fontSize = 10.sp, color = TextWhite)
+    }
+}
+
+@Composable
+fun FeaturedWordCard(language: String) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        shape = RoundedCornerShape(32.dp),
+        color = DarkSurfaceLighter
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .size(150.dp)
+                    .background(
+                        brush = Brush.radialGradient(listOf(NeonCyan.copy(0.1f), Color.Transparent)),
+                        shape = CircleShape
+                    )
+            )
+
+            Column(modifier = Modifier.padding(24.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = NeonPurple.copy(0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            "WORD OF THE DAY",
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            color = NeonPurple,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+                    Text(language, color = TextGrey, fontSize = 12.sp)
+                }
+                
+                Spacer(Modifier.weight(1f))
+                
+                Column {
+                    Text("برات", fontSize = 56.sp, color = TextWhite, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Braat", fontSize = 18.sp, color = NeonCyan, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(8.dp))
+                        Text("• Brother", fontSize = 16.sp, color = TextGrey)
+                    }
+                }
+                
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+fun NavigationGrid(onLiteracyClick: () -> Unit, onVocabularyClick: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        NavCard(
+            title = "Vocabulary",
+            subtitle = "Visual word learning",
+            icon = Icons.Default.Translate,
+            color = NeonCyan,
+            onClick = onVocabularyClick
+        )
+        NavCard(
+            title = "Literacy",
+            subtitle = "Script & Grammar",
+            icon = Icons.AutoMirrored.Filled.MenuBook,
+            color = NeonPurple,
+            onClick = onLiteracyClick
+        )
+        NavCard(
+            title = "AI Tutor",
+            subtitle = "Practice speaking",
+            icon = Icons.Default.AutoAwesome,
+            color = NeonGreen,
+            onClick = {}
+        )
+    }
+}
+
+@Composable
+fun NavCard(title: String, subtitle: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = DarkSurface,
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(color.copy(0.1f), RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(28.dp))
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = TextWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(subtitle, color = TextGrey, fontSize = 13.sp)
+            }
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = DarkSurfaceLighter, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@Composable
+fun BottomNavigationBar(onProfileClick: () -> Unit) {
+    Surface(
+        color = DarkBg,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(bottom = 24.dp, top = 12.dp, start = 24.dp, end = 24.dp)
+                .fillMaxWidth()
+                .background(DarkSurface, RoundedCornerShape(24.dp))
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BottomNavItem(Icons.Default.Home, "Home", true)
+            BottomNavItem(Icons.Default.AutoAwesome, "AI", false)
+            BottomNavItem(Icons.Default.Person, "Profile", false, onClick = onProfileClick)
+        }
+    }
+}
+
+@Composable
+fun BottomNavItem(icon: ImageVector, label: String, isSelected: Boolean, onClick: () -> Unit = {}) {
+    IconButton(onClick = onClick) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = if (isSelected) NeonCyan else TextGrey.copy(0.5f),
+            modifier = Modifier.size(26.dp)
+        )
     }
 }

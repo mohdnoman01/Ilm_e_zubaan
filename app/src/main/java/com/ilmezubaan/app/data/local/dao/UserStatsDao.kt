@@ -18,4 +18,7 @@ interface UserStatsDao {
 
     @Update
     suspend fun updateUserStats(userStats: UserStats)
+
+    @Query("DELETE FROM user_stats")
+    suspend fun deleteAll()
 }
