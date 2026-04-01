@@ -108,6 +108,7 @@ fun AppNavGraph() {
                 onVocabularyClick = {
                     navController.navigate(NavRoutes.VOCABULARY)
                 },
+
                 languageViewModel = languageViewModel,
                 homeViewModel = homeViewModel
             )
