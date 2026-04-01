@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ilmezubaan.app.data.local.entities.UserStats
+import com.ilmezubaan.app.data.model.Concept
 import com.ilmezubaan.app.data.model.Lesson
 import com.ilmezubaan.app.ui.theme.*
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
@@ -34,7 +35,7 @@ import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
 @Composable
 fun HomeScreen(
     onLanguageClick: () -> Unit,
-    onLessonClick: (String) -> Unit, // Changed to take language name for general list
+    onLessonClick: (String) -> Unit,
     onProfileClick: () -> Unit,
     onLiteracyClick: () -> Unit,
     onVocabularyClick: () -> Unit,
@@ -44,6 +45,7 @@ fun HomeScreen(
     val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
     val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
     val userStats by homeViewModel.userStats.collectAsState()
+    val featuredWord by homeViewModel.featuredWord.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -71,7 +73,10 @@ fun HomeScreen(
                 Spacer(Modifier.height(28.dp))
 
                 // Word of the Day
-                FeaturedWordCard(selectedLanguage.name)
+                FeaturedWordCard(
+                    language = selectedLanguage.name,
+                    featuredWord = featuredWord
+                )
 
                 Spacer(Modifier.height(28.dp))
 
@@ -186,7 +191,7 @@ fun LanguageBadge(name: String, color: Color) {
 }
 
 @Composable
-fun FeaturedWordCard(language: String) {
+fun FeaturedWordCard(language: String, featuredWord: Concept?) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -229,12 +234,36 @@ fun FeaturedWordCard(language: String) {
                 
                 Spacer(Modifier.weight(1f))
                 
-                Column {
-                    Text("برات", fontSize = 56.sp, color = TextWhite, fontWeight = FontWeight.Bold)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Braat", fontSize = 18.sp, color = NeonCyan, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.width(8.dp))
-                        Text("• Brother", fontSize = 16.sp, color = TextGrey)
+                if (featuredWord != null) {
+                    val langData = featuredWord.languages[language.lowercase()]
+                    Column {
+                        Text(
+                            text = langData?.script ?: "...",
+                            fontSize = 48.sp,
+                            color = TextWhite,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = langData?.roman ?: "",
+                                fontSize = 18.sp,
+                                color = NeonCyan,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "• ${featuredWord.englishMeaning}",
+                                fontSize = 16.sp,
+                                color = TextGrey
+                            )
+                        }
+                    }
+                } else {
+                    // Loading placeholder
+                    Column {
+                        Box(Modifier.size(100.dp, 40.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(8.dp)))
+                        Spacer(Modifier.height(8.dp))
+                        Box(Modifier.size(150.dp, 20.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(4.dp)))
                     }
                 }
                 

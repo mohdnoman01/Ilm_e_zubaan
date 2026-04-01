@@ -46,7 +46,7 @@ fun AppNavGraph() {
         database.languageMetadataDao()
     )
     
-    val firebaseDatabase = FirebaseDatabase.getInstance("https://ilm-e-zubaan-default-rtdb.asia-southeast1.firebasedatabase.app/")
+    val firebaseDatabase = FirebaseDatabase.getInstance("https://ilm-e-zubaan-default-rtdb.asia-southeast1.firebasedatabase.app")
     
     val conceptRepository = ConceptRepository(
         conceptDao = database.conceptDao(),
@@ -58,7 +58,7 @@ fun AppNavGraph() {
         factory = LanguageViewModelFactory(userStatsRepository)
     )
     val homeViewModel: HomeViewModel = viewModel(
-        factory = HomeViewModelFactory(userStatsRepository)
+        factory = HomeViewModelFactory(userStatsRepository, conceptRepository)
     )
     val conceptViewModel: ConceptViewModel = viewModel(
         factory = ConceptViewModelFactory(conceptRepository)
@@ -77,7 +77,7 @@ fun AppNavGraph() {
                         navController.navigate(NavRoutes.LANGUAGE_NATIVE) {
                             popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         }
-                    } else if (userStats?.selectedLanguageName != null && userStats?.nativeLanguageName != null) {
+                    } else if (userStats.selectedLanguageName != null && userStats.nativeLanguageName != null) {
                         navController.navigate(NavRoutes.HOME) {
                             popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         }
@@ -108,6 +108,7 @@ fun AppNavGraph() {
                 onVocabularyClick = {
                     navController.navigate(NavRoutes.VOCABULARY)
                 },
+
                 languageViewModel = languageViewModel,
                 homeViewModel = homeViewModel
             )
@@ -177,7 +178,7 @@ fun AppNavGraph() {
         composable(NavRoutes.PROFILE) {
             val userStats by homeViewModel.userStats.collectAsState()
             ProfileScreen(
-                userStats = userStats ?: com.ilmezubaan.app.data.local.entities.UserStats(),
+                userStats = userStats,
                 onBack = { navController.popBackStack() },
                 onLogout = {
                     navController.navigate(NavRoutes.LOGIN) {

@@ -1,6 +1,7 @@
 package com.ilmezubaan.app.data.repository
 
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -11,9 +12,11 @@ import com.ilmezubaan.app.data.local.entities.LanguageMetadataEntity
 import com.ilmezubaan.app.data.model.Concept
 import com.ilmezubaan.app.data.model.LanguageDetail
 import com.ilmezubaan.app.data.model.LanguageMetadata
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class ConceptRepository(
     private val conceptDao: ConceptDao,
@@ -22,53 +25,57 @@ class ConceptRepository(
 ) {
     private val gson = Gson()
     private val dbRef = firebaseDatabase.reference
+    private val auth = FirebaseAuth.getInstance()
 
     val allConcepts: Flow<List<Concept>> = conceptDao.getAllConcepts().map { entities ->
         entities.map { it.toDomain() }
+    }
+
+    private suspend fun ensureAuthenticated(): Boolean {
+        if (auth.currentUser == null) {
+            return try {
+                auth.signInAnonymously().await()
+                Log.d("FirebaseSync", "Signed in anonymously: ${auth.currentUser?.uid}")
+                true
+            } catch (e: Exception) {
+                Log.e("FirebaseSync", "Anonymous sign-in failed", e)
+                false
+            }
+        }
+        return true
     }
 
     fun getMetadata(langId: String): Flow<LanguageMetadata?> {
         return metadataDao.getMetadata(langId).map { it?.toDomain() }
     }
 
-    suspend fun syncConcepts() {
+    suspend fun syncConcepts() = withContext(Dispatchers.IO) {
         try {
-            Log.d("FirebaseSync", "Starting Sync...")
+            Log.d("FirebaseSync", "Starting Sync... User: ${auth.currentUser?.uid}")
+            if (!ensureAuthenticated()) {
+                Log.e("FirebaseSync", "Sync failed: Not authenticated")
+                return@withContext
+            }
             
-            // Try fetching from root to see what's actually there
             val snapshot = dbRef.get().await()
             
             if (!snapshot.exists()) {
                 Log.e("FirebaseSync", "Database is empty!")
-                return
+                return@withContext
             }
 
-            // If 'Languages' exists, use it. Otherwise, use the root snapshot.
+            // Data structure handle karne ke liye check
             val languagesNode = snapshot.child("Languages")
-            val targetSnapshot = if (languagesNode.exists()) {
-                Log.d("FirebaseSync", "Found 'Languages' node.")
-                languagesNode
-            } else {
-                Log.d("FirebaseSync", "'Languages' node not found, using root.")
-                snapshot
-            }
-
-            Log.d("FirebaseSync", "Target Node: ${targetSnapshot.key}, Children: ${targetSnapshot.childrenCount}")
+            val targetSnapshot = if (languagesNode.exists()) languagesNode else snapshot
 
             val allRemoteConcepts = mutableListOf<ConceptEntity>()
 
             targetSnapshot.children.forEach { langFolder ->
                 val langName = langFolder.key?.lowercase() ?: return@forEach
-                
-                // Skip non-language metadata/user folders if we are at root
                 if (langName == "language_metadata" || langName == "users" || langName == "languages") return@forEach
-
-                Log.d("FirebaseSync", "Processing language: $langName")
 
                 langFolder.children.forEach { conceptSnapshot ->
                     val data = conceptSnapshot
-                    
-                    // Check multiple possible keys for english meaning
                     val english = data.child("english_meaning").value?.toString()
                         ?: data.child("english").value?.toString()
                         ?: ""
@@ -76,12 +83,12 @@ class ConceptRepository(
                     if (english.isNotEmpty()) {
                         val id = "${langName}_${data.key}"
                         val category = data.child("category").value?.toString() ?: "General"
-                        val level = data.child("level").value?.toString() ?: data.child("difficulty").value?.toString() ?: "Basic"
+                        val level = data.child("level").value?.toString() ?: "Basic"
                         val audioUrl = data.child("audio_url").value?.toString() ?: ""
                         
                         val example = data.child("${langName}_example").value?.toString()
                             ?: data.child("example").value?.toString()
-                            ?: data.child("exampleMeaning").value?.toString()
+                            ?: ""
                         
                         val exampleMeaning = data.child("${langName}_example_meaning").value?.toString()
                             ?: data.child("example_meaning").value?.toString()
@@ -89,13 +96,10 @@ class ConceptRepository(
                         
                         val languages = mutableMapOf<String, LanguageDetail>()
                         
-                        // Try all possible native script keys
                         val nativeScript = data.child("${langName}_shahmukhi").value?.toString()
                             ?: data.child("${langName}_script").value?.toString()
                             ?: data.child("urdu_meaning").value?.toString()
                             ?: data.child("native_script").value?.toString()
-                            ?: data.child("punjabi_shahmukhi").value?.toString()
-                            ?: data.child("${langName}_urdu_meaning").value?.toString()
                             ?: data.child("script").value?.toString()
                             ?: ""
 
@@ -125,16 +129,15 @@ class ConceptRepository(
                 conceptDao.deleteAll()
                 conceptDao.insertConcepts(allRemoteConcepts)
                 Log.d("FirebaseSync", "Successfully synced ${allRemoteConcepts.size} concepts.")
-            } else {
-                Log.e("FirebaseSync", "No concepts were parsed! Check if the data structure matches.")
             }
         } catch (e: Exception) {
             Log.e("FirebaseSync", "Sync failed: ${e.message}", e)
         }
     }
 
-    suspend fun syncMetadata() {
+    suspend fun syncMetadata() = withContext(Dispatchers.IO) {
         try {
+            if (!ensureAuthenticated()) return@withContext
             val snapshot = dbRef.child("language_metadata").get().await()
             snapshot.children.forEach { child ->
                 val entity = LanguageMetadataEntity(
@@ -152,7 +155,7 @@ class ConceptRepository(
         }
     }
 
-    suspend fun insertConcepts(concepts: List<ConceptEntity>) {
+    suspend fun insertConcepts(concepts: List<ConceptEntity>) = withContext(Dispatchers.IO) {
         conceptDao.insertConcepts(concepts)
     }
 

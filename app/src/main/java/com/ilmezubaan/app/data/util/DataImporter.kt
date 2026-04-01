@@ -1,6 +1,5 @@
 package com.ilmezubaan.app.data.util
 
-import android.content.Context
 import com.google.gson.Gson
 import com.ilmezubaan.app.data.local.entities.ConceptEntity
 import com.ilmezubaan.app.data.local.entities.ConceptLanguageData
@@ -9,7 +8,7 @@ import com.ilmezubaan.app.ui.viewmodel.ConceptViewModel
 object DataImporter {
     private val gson = Gson()
 
-    fun importPunjabiData(context: Context, viewModel: ConceptViewModel) {
+    fun importPunjabiData(viewModel: ConceptViewModel) {
         val rawData = """
             1	میں	میں	I	Basic
             2	تو	تم	You	Basic
@@ -125,7 +124,7 @@ object DataImporter {
                     ),
                     "urdu" to ConceptLanguageData(
                         script = parts[2],
-                        roman = "", // Roman for Urdu not provided in this snippet
+                        roman = "",
                         audioUrl = null
                     )
                 )
@@ -141,7 +140,6 @@ object DataImporter {
             } else null
         }
         
-        // Use a new method in ViewModel to insert concepts
         viewModel.insertConcepts(concepts)
     }
 }
