@@ -188,6 +188,7 @@ fun AppNavGraph() {
                 onPrivacySettingsClick = {
                     navController.navigate(NavRoutes.PRIVACY_SETTINGS)
                 },
+                onUpdateAvatar = { homeViewModel.updateAvatar(it) },
                 onClearData = {
                     scope.launch {
                         userStatsRepository.clearAllData()

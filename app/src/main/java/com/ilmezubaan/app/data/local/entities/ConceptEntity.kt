@@ -10,6 +10,7 @@ data class ConceptEntity(
     val category: String,
     val difficultyLevel: String,
     val languagesJson: String, // Stored as JSON string via TypeConverter
+    val context: String? = null,
     val updatedAt: Long
 )
 

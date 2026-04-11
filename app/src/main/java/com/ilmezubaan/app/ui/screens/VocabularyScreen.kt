@@ -158,6 +158,7 @@ fun VocabularyScreen(
                             englishText = concept.englishMeaning,
                             romanText = learnLangData.roman,
                             category = concept.category,
+                            context = concept.context,
                             example = learnLangData.example,
                             exampleMeaning = learnLangData.exampleMeaning,
                             onPlayAudio = { 
@@ -185,6 +186,7 @@ fun VocabularyFlashcard(
     englishText: String,
     romanText: String,
     category: String,
+    context: String?,
     example: String?,
     exampleMeaning: String?,
     onPlayAudio: () -> Unit
@@ -230,7 +232,12 @@ fun VocabularyFlashcard(
                         onPlay = onPlayAudio,
                         content = {
                             Text(explanationText, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextWhite, textAlign = TextAlign.Center)
-                            Text("($englishText)", fontSize = 14.sp, color = TextGrey)
+                            Text(
+                                text = "(${context ?: englishText})",
+                                fontSize = 14.sp,
+                                color = TextGrey,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     )
                 }

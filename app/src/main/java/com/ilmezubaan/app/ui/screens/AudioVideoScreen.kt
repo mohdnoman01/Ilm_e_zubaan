@@ -92,21 +92,26 @@ fun AudioVideoScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = lessonTitle,
-                        fontSize = 48.sp,
+                        fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = AppTeal
+                        color = AppTeal,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 38.sp
                     )
                     Spacer(Modifier.height(16.dp))
                     Text(
                         text = if (lessonType == "VIDEO") "Video Lesson" else "Pronunciation Guide",
                         fontSize = 16.sp,
-                        color = TextGrey
+                        color = TextGrey,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             }

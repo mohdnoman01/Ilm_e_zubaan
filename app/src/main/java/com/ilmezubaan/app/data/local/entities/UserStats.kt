@@ -9,6 +9,7 @@ data class UserStats(
     val userName: String = "User",
     val xpPoints: Int = 0,
     val currentStreak: Int = 0,
+    val avatarEmoji: String = "👤",
     val lastAppOpenDate: Long = 0L,
     val nativeLanguageName: String? = null, // The language the user knows
     val selectedLanguageName: String? = null, // The language the user wants to learn

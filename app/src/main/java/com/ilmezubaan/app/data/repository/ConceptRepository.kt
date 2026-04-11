@@ -84,6 +84,7 @@ class ConceptRepository(
                         val id = "${langName}_${data.key}"
                         val category = data.child("category").value?.toString() ?: "General"
                         val level = data.child("level").value?.toString() ?: "Basic"
+                        val context = data.child("context").value?.toString()
                         val audioUrl = data.child("audio_url").value?.toString() ?: ""
                         
                         val example = data.child("${langName}_example").value?.toString()
@@ -118,6 +119,7 @@ class ConceptRepository(
                                 category = category,
                                 difficultyLevel = level,
                                 languagesJson = gson.toJson(languages),
+                                context = context,
                                 updatedAt = System.currentTimeMillis()
                             )
                         )
@@ -172,6 +174,7 @@ class ConceptRepository(
             category = this.category,
             difficultyLevel = this.difficultyLevel,
             languages = langMap,
+            context = this.context,
             updatedAt = this.updatedAt
         )
     }

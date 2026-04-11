@@ -9,6 +9,7 @@ data class Concept(
     val category: String = "General",
     val difficultyLevel: String = "Basic",
     val languages: Map<String, LanguageDetail> = emptyMap(),
+    val context: String? = null,
     val updatedAt: Long = 0L
 )
 

@@ -42,6 +42,13 @@ class UserStatsRepository(
         )
     }
 
+    suspend fun updateAvatar(avatar: String) {
+        val currentStats = userStatsDao.getUserStats().first() ?: UserStats()
+        userStatsDao.insertUserStats(
+            currentStats.copy(avatarEmoji = avatar)
+        )
+    }
+
     suspend fun checkAndUpdateStreak() {
         val currentStats = userStatsDao.getUserStats().first() ?: UserStats()
         val today = Calendar.getInstance().apply {

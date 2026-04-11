@@ -30,23 +30,40 @@ class HomeViewModel(
     init {
         viewModelScope.launch {
             repository.checkAndUpdateStreak()
-            updateFeaturedWord()
+            // Sync concepts to ensure data is available
+            conceptRepository.syncConcepts()
+            observeFeaturedWord()
         }
     }
 
-    private suspend fun updateFeaturedWord() {
-        conceptRepository.allConcepts.collectLatest { concepts ->
-            if (concepts.isNotEmpty()) {
-                // Use seed based on today's date for daily word
-                val today = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }.timeInMillis
-                
-                val random = Random(today)
-                _featuredWord.value = concepts[random.nextInt(concepts.size)]
+    private fun observeFeaturedWord() {
+        viewModelScope.launch {
+            combine(conceptRepository.allConcepts, userStats) { concepts, stats ->
+                Pair(concepts, stats.selectedLanguageName)
+            }.collectLatest { (concepts, languageName) ->
+                if (concepts.isNotEmpty() && !languageName.isNullOrEmpty()) {
+                    // Filter concepts that have the selected language available
+                    val filtered = concepts.filter { concept ->
+                        concept.languages.keys.any { it.equals(languageName, ignoreCase = true) }
+                    }
+
+                    if (filtered.isNotEmpty()) {
+                        // Use seed based on today's date for daily word consistency
+                        val today = Calendar.getInstance().apply {
+                            set(Calendar.HOUR_OF_DAY, 0)
+                            set(Calendar.MINUTE, 0)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }.timeInMillis
+                        
+                        val random = Random(today)
+                        _featuredWord.value = filtered[random.nextInt(filtered.size)]
+                    } else {
+                        _featuredWord.value = null
+                    }
+                } else {
+                    _featuredWord.value = null
+                }
             }
         }
     }
@@ -58,6 +75,12 @@ class HomeViewModel(
             in 12..16 -> "Good Afternoon"
             in 17..21 -> "Good Evening"
             else -> "Good Night"
+        }
+    }
+
+    fun updateAvatar(avatar: String) {
+        viewModelScope.launch {
+            repository.updateAvatar(avatar)
         }
     }
 }

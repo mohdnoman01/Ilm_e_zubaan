@@ -15,7 +15,7 @@ import com.ilmezubaan.app.data.local.entities.LanguageMetadataEntity
 
 @Database(
     entities = [UserStats::class, ConceptEntity::class, LanguageMetadataEntity::class],
-    version = 8, // Increased from 7 to 8 due to schema changes (deleteAll methods)
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(LanguageConverter::class)

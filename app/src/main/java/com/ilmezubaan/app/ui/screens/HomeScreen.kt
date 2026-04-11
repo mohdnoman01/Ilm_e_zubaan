@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -200,12 +201,19 @@ fun FeaturedWordCard(language: String, featuredWord: Concept?) {
         color = DarkSurfaceLighter
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Decorative background element
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .size(150.dp)
+                    .graphicsLayer {
+                        translationX = -50f
+                        translationY = 50f
+                    }
                     .background(
-                        brush = Brush.radialGradient(listOf(NeonCyan.copy(0.1f), Color.Transparent)),
+                        brush = Brush.radialGradient(
+                            colors = listOf(NeonCyan.copy(0.15f), Color.Transparent)
+                        ),
                         shape = CircleShape
                     )
             )
@@ -229,45 +237,78 @@ fun FeaturedWordCard(language: String, featuredWord: Concept?) {
                             letterSpacing = 1.sp
                         )
                     }
-                    Text(language, color = TextGrey, fontSize = 12.sp)
+                    Text(
+                        text = language,
+                        color = TextGrey,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
                 
                 Spacer(Modifier.weight(1f))
                 
                 if (featuredWord != null) {
-                    val langData = featuredWord.languages[language.lowercase()]
-                    Column {
+                    val langKey = featuredWord.languages.keys.find { it.equals(language, ignoreCase = true) }
+                    val langData = langKey?.let { featuredWord.languages[it] }
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = langData?.script ?: "...",
-                            fontSize = 48.sp,
+                            fontSize = 42.sp,
                             color = TextWhite,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            lineHeight = 48.sp
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        
+                        Spacer(Modifier.height(4.dp))
+                        
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (!langData?.roman.isNullOrEmpty()) {
+                                Text(
+                                    text = langData?.roman ?: "",
+                                    fontSize = 16.sp,
+                                    color = NeonCyan,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = " • ",
+                                    fontSize = 16.sp,
+                                    color = TextGrey.copy(0.5f)
+                                )
+                            }
                             Text(
-                                text = langData?.roman ?: "",
-                                fontSize = 18.sp,
-                                color = NeonCyan,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = "• ${featuredWord.englishMeaning}",
+                                text = featuredWord.context ?: featuredWord.englishMeaning,
                                 fontSize = 16.sp,
-                                color = TextGrey
+                                color = TextWhite.copy(0.7f),
+                                fontWeight = FontWeight.Normal
                             )
                         }
                     }
                 } else {
                     // Loading placeholder
-                    Column {
-                        Box(Modifier.size(100.dp, 40.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(8.dp)))
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            "Loading word...",
+                            fontSize = 24.sp,
+                            color = TextGrey.copy(0.3f),
+                            fontWeight = FontWeight.Bold
+                        )
                         Spacer(Modifier.height(8.dp))
-                        Box(Modifier.size(150.dp, 20.dp).background(Color.Gray.copy(0.2f), RoundedCornerShape(4.dp)))
+                        Box(
+                            Modifier
+                                .size(120.dp, 16.dp)
+                                .background(Color.White.copy(0.05f), RoundedCornerShape(4.dp))
+                        )
                     }
                 }
                 
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.weight(1.2f))
             }
         }
     }

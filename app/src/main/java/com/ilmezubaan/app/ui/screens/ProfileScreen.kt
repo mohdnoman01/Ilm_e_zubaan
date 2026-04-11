@@ -1,7 +1,10 @@
 package com.ilmezubaan.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -22,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ilmezubaan.app.data.local.entities.UserStats
 import com.ilmezubaan.app.ui.theme.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,10 +35,79 @@ fun ProfileScreen(
     onBack: () -> Unit,
     onLogout: () -> Unit,
     onPrivacySettingsClick: () -> Unit,
+    onUpdateAvatar: (String) -> Unit,
     onClearData: () -> Unit = {}
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
+    var showAvatarDialog by remember { mutableStateOf(false) }
+
+    val avatars = listOf(
+        "👤" to 0, "🔥" to 0, "🌟" to 500, "🎓" to 1000,
+        "🏆" to 2000, "💎" to 3000, "🚀" to 5, "👑" to 10,
+        "🦁" to 15, "🐉" to 20, "🧠" to 5000, "🌍" to 30
+    )
+
+    if (showAvatarDialog) {
+        AlertDialog(
+            onDismissRequest = { showAvatarDialog = false },
+            containerColor = DarkSurface,
+            titleContentColor = TextWhite,
+            title = { Text("Choose Avatar") },
+            text = {
+                Column {
+                    Text("Unlock new avatars by gaining XP or maintaining streaks!", color = TextGrey, fontSize = 12.sp)
+                    Spacer(Modifier.height(16.dp))
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(4),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.height(250.dp)
+                    ) {
+                        items(avatars.size) { index ->
+                            val (emoji, requirement) = avatars[index]
+                            val isUnlocked = if (index < 6 || index == 10) {
+                                userStats.xpPoints >= requirement
+                            } else {
+                                userStats.currentStreak >= requirement
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isUnlocked) DarkSurfaceLighter else Color.Black.copy(0.3f))
+                                    .clickable(enabled = isUnlocked) {
+                                        onUpdateAvatar(emoji)
+                                        showAvatarDialog = false
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = emoji,
+                                    fontSize = 24.sp,
+                                    modifier = Modifier.alpha(if (isUnlocked) 1f else 0.3f)
+                                )
+                                if (!isUnlocked) {
+                                    Icon(
+                                        Icons.Default.Lock,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(12.dp),
+                                        tint = TextGrey
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAvatarDialog = false }) {
+                    Text("Close", color = NeonPurple)
+                }
+            }
+        )
+    }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -111,19 +185,21 @@ fun ProfileScreen(
                     modifier = Modifier.size(120.dp),
                     shape = CircleShape,
                     color = DarkSurface,
-                    border = androidx.compose.foundation.BorderStroke(2.dp, NeonPurple)
+                    border = androidx.compose.foundation.BorderStroke(2.dp, NeonPurple),
+                    onClick = { showAvatarDialog = true }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(60.dp), tint = TextGrey)
+                        Text(userStats.avatarEmoji, fontSize = 60.sp)
                     }
                 }
                 Surface(
                     modifier = Modifier.size(32.dp),
                     shape = CircleShape,
-                    color = NeonPurple
+                    color = NeonPurple,
+                    onClick = { showAvatarDialog = true }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp), tint = DarkBg)
+                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp), tint = DarkBg)
                     }
                 }
             }
@@ -141,7 +217,12 @@ fun ProfileScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 ProfileStatItem(userStats.currentStreak.toString(), "Streak", NeonOrange)
-                ProfileStatItem("${userStats.xpPoints / 1000.0}k", "XP", NeonGreen)
+                ProfileStatItem(
+                    if (userStats.xpPoints >= 1000) "${String.format(Locale.US, "%.1f", userStats.xpPoints / 1000.0)}k"
+                    else userStats.xpPoints.toString(), 
+                    "XP", 
+                    NeonGreen
+                )
                 ProfileStatItem("12", "Badges", NeonPurple)
             }
 
