@@ -12,8 +12,8 @@ navigationCompose = "2.8.5"
 credentials = "1.3.0"
 googleid = "1.1.1"
 googleServices = "4.4.2"
-gson = "2.10.1"
-gsonVersion = "2.11.0"
+gson = "2.11.0"
+# removed duplicate gsonVersion
 firebaseDatabase = "22.0.1"
 room = "2.6.1"
 firebaseBom = "33.7.0"
@@ -23,8 +23,11 @@ firebaseAuth = "23.1.0"
 firebaseAnalytics = "22.1.2"
 firebaseFirestore = "25.1.1"
 kotlinxCoroutinesPlayServices = "1.10.2"
-compileSdk = "36"
-targetSdk = "36"
+generativeai = "0.9.0"
+retrofit = "2.11.0"
+compileSdk = "35"
+targetSdk = "35"
+minSdk = "24"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -46,8 +49,8 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
 googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
-google-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gsonVersion" }
+google-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+# removed duplicate gson entry
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
@@ -61,6 +64,9 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutinesPlayServices" }
+google-generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeai" }
+squareup-retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+squareup-retrofit-converter-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

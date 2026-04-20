@@ -40,6 +40,7 @@ fun HomeScreen(
     onProfileClick: () -> Unit,
     onLiteracyClick: () -> Unit,
     onVocabularyClick: () -> Unit,
+    onAIClick: () -> Unit,
     languageViewModel: LanguageViewModel,
     homeViewModel: HomeViewModel
 ) {
@@ -50,7 +51,7 @@ fun HomeScreen(
 
     Scaffold(
         bottomBar = {
-            BottomNavigationBar(onProfileClick = onProfileClick)
+            BottomNavigationBar(onProfileClick = onProfileClick, onAIClick = onAIClick)
         },
         containerColor = DarkBg
     ) { padding ->
@@ -102,7 +103,8 @@ fun HomeScreen(
 
                 NavigationGrid(
                     onLiteracyClick = onLiteracyClick,
-                    onVocabularyClick = onVocabularyClick
+                    onVocabularyClick = onVocabularyClick,
+                    onAIClick = onAIClick
                 )
 
                 Spacer(Modifier.height(32.dp))
@@ -315,7 +317,7 @@ fun FeaturedWordCard(language: String, featuredWord: Concept?) {
 }
 
 @Composable
-fun NavigationGrid(onLiteracyClick: () -> Unit, onVocabularyClick: () -> Unit) {
+fun NavigationGrid(onLiteracyClick: () -> Unit, onVocabularyClick: () -> Unit, onAIClick: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         NavCard(
             title = "Vocabulary",
@@ -336,7 +338,7 @@ fun NavigationGrid(onLiteracyClick: () -> Unit, onVocabularyClick: () -> Unit) {
             subtitle = "Practice speaking",
             icon = Icons.Default.AutoAwesome,
             color = NeonGreen,
-            onClick = {}
+            onClick = onAIClick
         )
     }
 }
@@ -372,7 +374,7 @@ fun NavCard(title: String, subtitle: String, icon: ImageVector, color: Color, on
 }
 
 @Composable
-fun BottomNavigationBar(onProfileClick: () -> Unit) {
+fun BottomNavigationBar(onProfileClick: () -> Unit, onAIClick: () -> Unit) {
     Surface(
         color = DarkBg,
         modifier = Modifier.fillMaxWidth()
@@ -387,7 +389,7 @@ fun BottomNavigationBar(onProfileClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             BottomNavItem(Icons.Default.Home, "Home", true)
-            BottomNavItem(Icons.Default.AutoAwesome, "AI", false)
+            BottomNavItem(Icons.Default.AutoAwesome, "AI", false, onClick = onAIClick)
             BottomNavItem(Icons.Default.Person, "Profile", false, onClick = onProfileClick)
         }
     }

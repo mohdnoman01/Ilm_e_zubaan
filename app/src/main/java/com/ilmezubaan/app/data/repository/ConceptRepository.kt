@@ -56,9 +56,9 @@ class ConceptRepository(
                 Log.e("FirebaseSync", "Sync failed: Not authenticated")
                 return@withContext
             }
-            
+
             val snapshot = dbRef.get().await()
-            
+
             if (!snapshot.exists()) {
                 Log.e("FirebaseSync", "Database is empty!")
                 return@withContext

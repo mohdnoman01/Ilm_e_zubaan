@@ -4,9 +4,11 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.gson.Gson
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -15,7 +17,10 @@ import androidx.navigation.navArgument
 import com.google.firebase.database.FirebaseDatabase
 import com.ilmezubaan.app.data.local.AppDatabase
 import com.ilmezubaan.app.data.repository.ConceptRepository
+import com.ilmezubaan.app.data.repository.GeminiWordRepository
 import com.ilmezubaan.app.data.repository.UserStatsRepository
+import com.ilmezubaan.app.data.remote.gemini.GeminiApiClient
+import com.ilmezubaan.app.ui.screens.AIScreen
 import com.ilmezubaan.app.ui.screens.AudioVideoScreen
 import com.ilmezubaan.app.ui.screens.HomeScreen
 import com.ilmezubaan.app.ui.screens.LanguageSelectScreen
@@ -31,6 +36,8 @@ import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModelFactory
 import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
 import com.ilmezubaan.app.ui.viewmodel.LanguageViewModelFactory
+import com.ilmezubaan.app.ui.viewmodel.WordInsightViewModel
+import com.ilmezubaan.app.ui.viewmodel.WordInsightViewModelFactory
 import kotlinx.coroutines.launch
 
 @Composable
@@ -53,6 +60,13 @@ fun AppNavGraph() {
         metadataDao = database.languageMetadataDao(),
         firebaseDatabase = firebaseDatabase
     )
+
+    val geminiWordRepository = remember {
+        GeminiWordRepository(
+            apiService = GeminiApiClient.createService(),
+            gson = Gson()
+        )
+    }
     
     val languageViewModel: LanguageViewModel = viewModel(
         factory = LanguageViewModelFactory(userStatsRepository)
@@ -62,6 +76,9 @@ fun AppNavGraph() {
     )
     val conceptViewModel: ConceptViewModel = viewModel(
         factory = ConceptViewModelFactory(conceptRepository)
+    )
+    val wordInsightViewModel: WordInsightViewModel = viewModel(
+        factory = WordInsightViewModelFactory(geminiWordRepository)
     )
 
     NavHost(
@@ -107,6 +124,9 @@ fun AppNavGraph() {
                 },
                 onVocabularyClick = {
                     navController.navigate(NavRoutes.VOCABULARY)
+                },
+                onAIClick = {
+                    navController.navigate(NavRoutes.AI)
                 },
 
                 languageViewModel = languageViewModel,
@@ -203,6 +223,17 @@ fun AppNavGraph() {
         composable(NavRoutes.PRIVACY_SETTINGS) {
             PrivacySettingsScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(NavRoutes.AI) {
+            val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
+            val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
+            AIScreen(
+                onBack = { navController.popBackStack() },
+                learningLanguage = selectedLanguage.name,
+                nativeLanguage = nativeLanguage?.name ?: "Urdu",
+                viewModel = wordInsightViewModel
             )
         }
 
