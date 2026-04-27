@@ -11,7 +11,11 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import java.util.Random
 
-class HomeViewModel(
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
     private val repository: UserStatsRepository,
     private val conceptRepository: ConceptRepository
 ) : ViewModel() {
@@ -28,9 +32,8 @@ class HomeViewModel(
     val featuredWord: StateFlow<Concept?> = _featuredWord.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             repository.checkAndUpdateStreak()
-            // Sync concepts to ensure data is available
             conceptRepository.syncConcepts()
             observeFeaturedWord()
         }
@@ -81,6 +84,20 @@ class HomeViewModel(
     fun updateAvatar(avatar: String) {
         viewModelScope.launch {
             repository.updateAvatar(avatar)
+        }
+    }
+
+    fun clearAllData(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            repository.clearAllData()
+            onComplete()
+        }
+    }
+
+    fun saveUser(name: String, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            repository.updateUserName(name)
+            onComplete()
         }
     }
 }

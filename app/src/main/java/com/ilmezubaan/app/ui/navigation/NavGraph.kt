@@ -14,78 +14,25 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.google.firebase.database.FirebaseDatabase
-import com.ilmezubaan.app.data.local.AppDatabase
-import com.ilmezubaan.app.data.repository.ConceptRepository
-import com.ilmezubaan.app.data.repository.GeminiWordRepository
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.ilmezubaan.app.ui.screens.*
 import com.ilmezubaan.app.data.repository.UserStatsRepository
-import com.ilmezubaan.app.data.remote.gemini.GeminiApiClient
-import com.ilmezubaan.app.ui.screens.AIScreen
-import com.ilmezubaan.app.ui.screens.AudioVideoScreen
-import com.ilmezubaan.app.ui.screens.HomeScreen
-import com.ilmezubaan.app.ui.screens.LanguageSelectScreen
-import com.ilmezubaan.app.ui.screens.LessonListScreen
-import com.ilmezubaan.app.ui.screens.LiteracyScreen
-import com.ilmezubaan.app.ui.screens.LoginScreen
-import com.ilmezubaan.app.ui.screens.PrivacySettingsScreen
-import com.ilmezubaan.app.ui.screens.ProfileScreen
-import com.ilmezubaan.app.ui.screens.VocabularyScreen
 import com.ilmezubaan.app.ui.viewmodel.ConceptViewModel
-import com.ilmezubaan.app.ui.viewmodel.ConceptViewModelFactory
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
-import com.ilmezubaan.app.ui.viewmodel.HomeViewModelFactory
 import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
-import com.ilmezubaan.app.ui.viewmodel.LanguageViewModelFactory
 import com.ilmezubaan.app.ui.viewmodel.WordInsightViewModel
-import com.ilmezubaan.app.ui.viewmodel.WordInsightViewModelFactory
 import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    
-    val database = AppDatabase.getDatabase(context)
-    val userStatsRepository = UserStatsRepository(
-        database.userStatsDao(),
-        database.conceptDao(),
-        database.languageMetadataDao()
-    )
-    
-    val firebaseDatabase = FirebaseDatabase.getInstance("https://ilm-e-zubaan-default-rtdb.asia-southeast1.firebasedatabase.app")
-    
-    val conceptRepository = ConceptRepository(
-        conceptDao = database.conceptDao(),
-        metadataDao = database.languageMetadataDao(),
-        firebaseDatabase = firebaseDatabase
-    )
-
-    val geminiWordRepository = remember {
-        GeminiWordRepository(
-            apiService = GeminiApiClient.createService(),
-            gson = Gson()
-        )
-    }
-    
-    val languageViewModel: LanguageViewModel = viewModel(
-        factory = LanguageViewModelFactory(userStatsRepository)
-    )
-    val homeViewModel: HomeViewModel = viewModel(
-        factory = HomeViewModelFactory(userStatsRepository, conceptRepository)
-    )
-    val conceptViewModel: ConceptViewModel = viewModel(
-        factory = ConceptViewModelFactory(conceptRepository)
-    )
-    val wordInsightViewModel: WordInsightViewModel = viewModel(
-        factory = WordInsightViewModelFactory(geminiWordRepository)
-    )
 
     NavHost(
         navController = navController,
         startDestination = NavRoutes.LOGIN
     ) {
         composable(NavRoutes.LOGIN) {
+            val homeViewModel: HomeViewModel = hiltViewModel()
             val userStats by homeViewModel.userStats.collectAsState()
             
             LoginScreen(
@@ -99,16 +46,18 @@ fun AppNavGraph() {
                             popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         }
                     } else {
-                        // Fallback if metadata is missing
                         navController.navigate(NavRoutes.LANGUAGE_NATIVE) {
                             popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         }
                     }
-                }
+                },
+                homeViewModel = homeViewModel
             )
         }
 
         composable(NavRoutes.HOME) {
+            val homeViewModel: HomeViewModel = hiltViewModel()
+            val languageViewModel: LanguageViewModel = hiltViewModel()
             HomeScreen(
                 onLanguageClick = {
                     navController.navigate(NavRoutes.LANGUAGE_LEARN)
@@ -128,13 +77,13 @@ fun AppNavGraph() {
                 onAIClick = {
                     navController.navigate(NavRoutes.AI)
                 },
-
                 languageViewModel = languageViewModel,
                 homeViewModel = homeViewModel
             )
         }
 
         composable(NavRoutes.LANGUAGE_NATIVE) {
+            val languageViewModel: LanguageViewModel = hiltViewModel()
             LanguageSelectScreen(
                 title = "What is your native language?",
                 subtitle = "We will use this to explain words to you",
@@ -149,6 +98,7 @@ fun AppNavGraph() {
         }
 
         composable(NavRoutes.LANGUAGE_LEARN) {
+            val languageViewModel: LanguageViewModel = hiltViewModel()
             LanguageSelectScreen(
                 title = "What language do you want to learn?",
                 subtitle = "Select the regional language you're interested in",
@@ -166,6 +116,8 @@ fun AppNavGraph() {
         }
 
         composable(NavRoutes.VOCABULARY) {
+            val languageViewModel: LanguageViewModel = hiltViewModel()
+            val conceptViewModel: ConceptViewModel = hiltViewModel()
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
             val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
             
@@ -183,6 +135,7 @@ fun AppNavGraph() {
         }
 
         composable(NavRoutes.LITERACY) {
+            val languageViewModel: LanguageViewModel = hiltViewModel()
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
             LiteracyScreen(
                 language = selectedLanguage.name,
@@ -196,6 +149,7 @@ fun AppNavGraph() {
         }
 
         composable(NavRoutes.PROFILE) {
+            val homeViewModel: HomeViewModel = hiltViewModel()
             val userStats by homeViewModel.userStats.collectAsState()
             ProfileScreen(
                 userStats = userStats,
@@ -210,8 +164,7 @@ fun AppNavGraph() {
                 },
                 onUpdateAvatar = { homeViewModel.updateAvatar(it) },
                 onClearData = {
-                    scope.launch {
-                        userStatsRepository.clearAllData()
+                    homeViewModel.clearAllData {
                         navController.navigate(NavRoutes.LOGIN) {
                             popUpTo(0) { inclusive = true }
                         }
@@ -227,6 +180,8 @@ fun AppNavGraph() {
         }
 
         composable(NavRoutes.AI) {
+            val languageViewModel: LanguageViewModel = hiltViewModel()
+            val wordInsightViewModel: WordInsightViewModel = hiltViewModel()
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
             val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
             AIScreen(
@@ -243,6 +198,7 @@ fun AppNavGraph() {
                 navArgument("language") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            val conceptViewModel: ConceptViewModel = hiltViewModel()
             val language = backStackEntry.arguments?.getString("language") ?: "Unknown"
 
             LessonListScreen(
@@ -263,6 +219,8 @@ fun AppNavGraph() {
                 navArgument("type") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            val languageViewModel: LanguageViewModel = hiltViewModel()
+            val conceptViewModel: ConceptViewModel = hiltViewModel()
             val title = backStackEntry.arguments?.getString("title") ?: "Lesson"
             val type = backStackEntry.arguments?.getString("type") ?: "AUDIO"
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()

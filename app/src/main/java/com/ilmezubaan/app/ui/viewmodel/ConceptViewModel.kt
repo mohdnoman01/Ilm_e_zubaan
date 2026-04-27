@@ -9,7 +9,11 @@ import com.ilmezubaan.app.data.repository.ConceptRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class ConceptViewModel(private val repository: ConceptRepository) : ViewModel() {
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@HiltViewModel
+class ConceptViewModel @Inject constructor(private val repository: ConceptRepository) : ViewModel() {
 
     // Dynamic UI State for language switching
     private val _sourceLanguage = MutableStateFlow("punjabi")

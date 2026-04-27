@@ -49,6 +49,13 @@ class UserStatsRepository(
         )
     }
 
+    suspend fun updateUserName(name: String) {
+        val currentStats = userStatsDao.getUserStats().first() ?: UserStats()
+        userStatsDao.insertUserStats(
+            currentStats.copy(userName = name)
+        )
+    }
+
     suspend fun checkAndUpdateStreak() {
         val currentStats = userStatsDao.getUserStats().first() ?: UserStats()
         val today = Calendar.getInstance().apply {

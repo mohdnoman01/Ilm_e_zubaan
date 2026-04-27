@@ -9,13 +9,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
 data class Language(
     val name: String,
     val nativeName: String,
     val code: String
 )
 
-class LanguageViewModel(private val repository: UserStatsRepository) : ViewModel() {
+@HiltViewModel
+class LanguageViewModel @Inject constructor(private val repository: UserStatsRepository) : ViewModel() {
     private val _languages = listOf(
         Language("Punjabi", " پنجابی", "pa"),
         Language("Sindhi", "سنڌي" , "sd"),

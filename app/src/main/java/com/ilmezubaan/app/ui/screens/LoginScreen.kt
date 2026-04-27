@@ -33,23 +33,31 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.ilmezubaan.app.data.local.AppDatabase
-import com.ilmezubaan.app.data.local.entities.UserStats
+import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
+import com.ilmezubaan.app.utils.SecurityUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun LoginScreen(
-    onLoginSuccess: (isNewUser: Boolean) -> Unit
+    onLoginSuccess: (isNewUser: Boolean) -> Unit,
+    homeViewModel: HomeViewModel
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
-    val credentialManager = CredentialManager.create(context)
-    val database = AppDatabase.getDatabase(context)
-    val userStatsDao = database.userStatsDao()
+    val credentialManager = remember { CredentialManager.create(context) }
     
-    val sharedPreferences = remember { 
-        context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE) 
+    var encryptedPrefs by remember { mutableStateOf<android.content.SharedPreferences?>(null) }
+    var isLoadingSecurity by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            val prefs = SecurityUtils.getEncryptedPrefs(context)
+            encryptedPrefs = prefs
+            isLoadingSecurity = false
+        }
     }
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -66,203 +74,187 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val handleAction = {
-        val identifier = if (selectedTabIndex == 0) email else phoneNumber
-        val isValidIdentifier = if (selectedTabIndex == 0) {
-            android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+        val prefs = encryptedPrefs
+        if (prefs == null) {
+            errorMessage = "Security initialization in progress..."
         } else {
-            phoneNumber.length >= 10
-        }
-
-        if (isSignUp) {
-            if (name.isEmpty() || identifier.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
-                errorMessage = "Please fill all fields"
-            } else if (!isValidIdentifier) {
-                errorMessage = if (selectedTabIndex == 0) "Invalid email format" else "Invalid phone number"
-            } else if (password != confirmPassword) {
-                errorMessage = "Passwords do not match"
+            val identifier = if (selectedTabIndex == 0) email else phoneNumber
+            val isValidIdentifier = if (selectedTabIndex == 0) {
+                android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
             } else {
-                sharedPreferences.edit()
-                    .putString(identifier, password)
-                    .putString("${identifier}_name", name)
-                    .apply()
-                
-                coroutineScope.launch {
-                    userStatsDao.insertUserStats(UserStats(userName = name))
-                    onLoginSuccess(true) // New user (Sign Up)
-                }
+                phoneNumber.length >= 10
             }
-        } else {
-            val savedPassword = sharedPreferences.getString(identifier, null)
-            val savedName = sharedPreferences.getString("${identifier}_name", "User")
-            
-            if (identifier.isEmpty() || password.isEmpty()) {
-                errorMessage = "Please enter your details"
-            } else if (savedPassword == password) {
-                coroutineScope.launch {
-                    userStatsDao.insertUserStats(UserStats(userName = savedName ?: "User"))
-                    onLoginSuccess(false) // Existing user (Login)
+
+            if (isSignUp) {
+                if (name.isEmpty() || identifier.isEmpty() || password.isEmpty() || confirmPassword.isEmpty()) {
+                    errorMessage = "Please fill all fields"
+                } else if (!isValidIdentifier) {
+                    errorMessage = if (selectedTabIndex == 0) "Invalid email format" else "Invalid phone number"
+                } else if (password != confirmPassword) {
+                    errorMessage = "Passwords do not match"
+                } else {
+                    val (hashedPassword, salt) = SecurityUtils.hashPassword(password)
+                    prefs.edit()
+                        .putString(identifier, hashedPassword)
+                        .putString("${identifier}_salt", salt)
+                        .putString("${identifier}_name", name)
+                        .apply()
+                    
+                    homeViewModel.saveUser(name) {
+                        onLoginSuccess(true)
+                    }
                 }
             } else {
-                errorMessage = "Invalid credentials"
+                val savedHashedPassword = prefs.getString(identifier, null)
+                val savedSalt = prefs.getString("${identifier}_salt", null)
+                val savedName = prefs.getString("${identifier}_name", "User")
+                
+                if (identifier.isEmpty() || password.isEmpty()) {
+                    errorMessage = "Please enter your details"
+                } else if (savedHashedPassword != null && savedSalt != null && 
+                    SecurityUtils.verifyPassword(password, savedHashedPassword, savedSalt)) {
+                    homeViewModel.saveUser(savedName ?: "User") {
+                        onLoginSuccess(false)
+                    }
+                } else {
+                    errorMessage = "Invalid credentials"
+                }
             }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = if (isSignUp) "Create Account" else "Welcome Back",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Tab Switching for Login Methods
-        TabRow(
-            selectedTabIndex = selectedTabIndex,
-            modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-            containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.primary
+    if (isLoadingSecurity) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
         ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedTabIndex == index,
-                    onClick = { 
-                        selectedTabIndex = index 
-                        errorMessage = null
-                    },
-                    text = { 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (index == 0) Icons.Default.Email else Icons.Default.Phone,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(title)
-                        }
-                    }
-                )
+            Box(contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
-
-        if (isSignUp) {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { 
-                    name = it
-                    errorMessage = null 
-                },
-                label = { Text("Full Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Text,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                )
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = if (isSignUp) "Create Account" else "Welcome Back",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+            
+            Spacer(modifier = Modifier.height(24.dp))
 
-        if (selectedTabIndex == 0) {
-            OutlinedTextField(
-                value = email,
-                onValueChange = { 
-                    email = it
-                    errorMessage = null 
-                },
-                label = { Text("Email Address") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                isError = errorMessage != null,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                )
-            )
-        } else {
-            OutlinedTextField(
-                value = phoneNumber,
-                onValueChange = { input ->
-                    if (input.all { it.isDigit() }) {
-                        phoneNumber = input
-                        errorMessage = null
-                    }
-                },
-                label = { Text("Phone Number") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                isError = errorMessage != null,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Phone,
-                    imeAction = ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                )
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = password,
-            onValueChange = { input ->
-                password = input
-                errorMessage = null
-            },
-            label = { Text("Password") },
-            singleLine = true,
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(imageVector = image, contentDescription = null)
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { 
+                            selectedTabIndex = index 
+                            errorMessage = null
+                        },
+                        text = { 
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    if (index == 0) Icons.Default.Email else Icons.Default.Phone,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(title)
+                            }
+                        }
+                    )
                 }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            isError = errorMessage != null,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = if (isSignUp) ImeAction.Next else ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) },
-                onDone = { 
-                    focusManager.clearFocus()
-                    handleAction() 
-                }
-            )
-        )
+            }
 
-        if (isSignUp) {
+            if (isSignUp) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { 
+                        name = it
+                        errorMessage = null 
+                    },
+                    label = { Text("Full Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    )
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            if (selectedTabIndex == 0) {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { 
+                        email = it
+                        errorMessage = null 
+                    },
+                    label = { Text("Email Address") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = errorMessage != null,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    )
+                )
+            } else {
+                OutlinedTextField(
+                    value = phoneNumber,
+                    onValueChange = { input ->
+                        if (input.all { it.isDigit() }) {
+                            phoneNumber = input
+                            errorMessage = null
+                        }
+                    },
+                    label = { Text("Phone Number") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = errorMessage != null,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Phone,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    )
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
+
             OutlinedTextField(
-                value = confirmPassword,
+                value = password,
                 onValueChange = { input ->
-                    confirmPassword = input
+                    password = input
                     errorMessage = null
                 },
-                label = { Text("Confirm Password") },
+                label = { Text("Password") },
                 singleLine = true,
-                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                 trailingIcon = {
-                    val image = if (confirmPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
-                    IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                    val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(imageVector = image, contentDescription = null)
                     }
                 },
@@ -270,86 +262,119 @@ fun LoginScreen(
                 isError = errorMessage != null,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
+                    imeAction = if (isSignUp) ImeAction.Next else ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) },
                     onDone = { 
                         focusManager.clearFocus()
                         handleAction() 
                     }
                 )
             )
-        }
 
-        if (errorMessage != null) {
-            Text(
-                text = errorMessage!!,
-                color = Color.Red,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(top = 8.dp).align(Alignment.Start)
-            )
-        }
+            if (isSignUp) {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { input ->
+                        confirmPassword = input
+                        errorMessage = null
+                    },
+                    label = { Text("Confirm Password") },
+                    singleLine = true,
+                    visualTransformation = if (confirmPasswordVisible) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+                    trailingIcon = {
+                        val image = if (confirmPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                            Icon(imageVector = image, contentDescription = null)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = errorMessage != null,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { 
+                            focusManager.clearFocus()
+                            handleAction() 
+                        }
+                    )
+                )
+            }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage!!,
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 8.dp).align(Alignment.Start)
+                )
+            }
 
-        Button(
-            onClick = { handleAction() },
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.medium
-        ) {
-            Text(if (isSignUp) "Sign Up" else "Login")
-        }
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { handleAction() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Text(if (isSignUp) "Sign Up" else "Login")
+            }
 
-        TextButton(onClick = { 
-            isSignUp = !isSignUp 
-            errorMessage = null
-            email = ""
-            phoneNumber = ""
-            password = ""
-            confirmPassword = ""
-        }) {
-            Text(if (isSignUp) "Already have an account? Login" else "New user? Create an account")
-        }
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Text("Or continue with", fontSize = 14.sp, color = Color.Gray)
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SocialIcon(
-                iconUrl = "google",
-                onClick = { 
-                    coroutineScope.launch {
-                        try {
-                            val googleIdOption = GetGoogleIdOption.Builder()
-                                .setFilterByAuthorizedAccounts(false)
-                                .setServerClientId("YOUR_SERVER_CLIENT_ID")
-                                .setAutoSelectEnabled(true)
-                                .build()
+            TextButton(onClick = { 
+                isSignUp = !isSignUp 
+                errorMessage = null
+                email = ""
+                phoneNumber = ""
+                password = ""
+                confirmPassword = ""
+            }) {
+                Text(if (isSignUp) "Already have an account? Login" else "New user? Create an account")
+            }
 
-                            val request = GetCredentialRequest.Builder()
-                                .addCredentialOption(googleIdOption)
-                                .build()
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text("Or continue with", fontSize = 14.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SocialIcon(
+                    iconUrl = "google",
+                    onClick = { 
+                        coroutineScope.launch {
+                            try {
+                                val googleIdOption = GetGoogleIdOption.Builder()
+                                    .setFilterByAuthorizedAccounts(false)
+                                    .setServerClientId("100091555033-ggg0p1mb8omqv8p75q6j37qas1vudi34.apps.googleusercontent.com")
+                                    .setAutoSelectEnabled(true)
+                                    .build()
 
-                            val result = credentialManager.getCredential(context, request)
-                            onLoginSuccess(false) // Assume social login is for existing or doesn't force language select immediately
-                        } catch (e: GetCredentialException) {
-                            errorMessage = "Google Sign In Failed: ${e.message}"
+                                val request = GetCredentialRequest.Builder()
+                                    .addCredentialOption(googleIdOption)
+                                    .build()
+
+                                val result = credentialManager.getCredential(context, request)
+                                onLoginSuccess(false)
+                            } catch (e: GetCredentialException) {
+                                errorMessage = "Google Sign In Failed: ${e.message}"
+                            }
                         }
                     }
-                }
-            )
-            Spacer(modifier = Modifier.width(32.dp))
-            SocialIcon(
-                iconUrl = "facebook",
-                onClick = { onLoginSuccess(false) }
-            )
+                )
+                Spacer(modifier = Modifier.width(32.dp))
+                SocialIcon(
+                    iconUrl = "facebook",
+                    onClick = { onLoginSuccess(false) }
+                )
+            }
         }
     }
 }
@@ -359,8 +384,8 @@ fun SocialIcon(iconUrl: String, onClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .size(48.dp)
-            .clip(CircleShape)
-            .border(1.dp, Color.LightGray, CircleShape)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .border(1.dp, Color.LightGray, androidx.compose.foundation.shape.CircleShape)
             .clickable { onClick() },
         color = Color.White
     ) {

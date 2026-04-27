@@ -13,13 +13,15 @@ import com.ilmezubaan.app.data.remote.gemini.GeminiPart
 import com.ilmezubaan.app.data.remote.gemini.WordInsight
 import retrofit2.HttpException
 
-class GeminiWordRepository(
+import javax.inject.Inject
+
+class GeminiWordRepository @Inject constructor(
     private val apiService: GeminiApiService,
-    private val gson: Gson = Gson(),
-    private val apiKey: String = BuildConfig.GEMINI_API_KEY,
-    private val primaryModel: String = "models/gemini-2.5-flash",
-    private val fallbackModel: String = "models/gemini-2.0-flash"
+    private val gson: Gson,
 ) {
+    private val apiKey: String = BuildConfig.GEMINI_API_KEY
+    private val primaryModel: String = "models/gemini-2.5-flash"
+    private val fallbackModel: String = "models/gemini-2.0-flash"
     companion object {
         private const val TAG = "GeminiWordRepository"
     }

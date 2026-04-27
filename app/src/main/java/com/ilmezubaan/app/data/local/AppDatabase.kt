@@ -16,7 +16,7 @@ import com.ilmezubaan.app.data.local.entities.LanguageMetadataEntity
 @Database(
     entities = [UserStats::class, ConceptEntity::class, LanguageMetadataEntity::class],
     version = 10,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(LanguageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -35,7 +35,6 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "ilmezubaan_database"
                 )
-                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance

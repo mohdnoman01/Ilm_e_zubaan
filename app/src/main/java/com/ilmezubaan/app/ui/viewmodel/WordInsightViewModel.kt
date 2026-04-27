@@ -9,6 +9,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
 data class WordInsightUiState(
     val selectedWord: String = "",
     val insight: WordInsight? = null,
@@ -16,7 +19,8 @@ data class WordInsightUiState(
     val errorMessage: String? = null
 )
 
-class WordInsightViewModel(
+@HiltViewModel
+class WordInsightViewModel @Inject constructor(
     private val repository: GeminiWordRepository
 ) : ViewModel() {
 
