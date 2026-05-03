@@ -43,7 +43,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             combine(conceptRepository.allConcepts, userStats) { concepts, stats ->
                 Pair(concepts, stats.selectedLanguageName)
-            }.collectLatest { (concepts, languageName) ->
+            }
+            .flowOn(kotlinx.coroutines.Dispatchers.Default)
+            .collectLatest { (concepts, languageName) ->
                 if (concepts.isNotEmpty() && !languageName.isNullOrEmpty()) {
                     // Filter concepts that have the selected language available
                     val filtered = concepts.filter { concept ->

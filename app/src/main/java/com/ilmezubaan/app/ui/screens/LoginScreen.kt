@@ -33,11 +33,14 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
 import com.ilmezubaan.app.utils.SecurityUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import timber.log.Timber
 
 @Composable
 fun LoginScreen(
@@ -354,17 +357,38 @@ fun LoginScreen(
                                 val googleIdOption = GetGoogleIdOption.Builder()
                                     .setFilterByAuthorizedAccounts(false)
                                     .setServerClientId("100091555033-ggg0p1mb8omqv8p75q6j37qas1vudi34.apps.googleusercontent.com")
-                                    .setAutoSelectEnabled(true)
+                                    .setAutoSelectEnabled(false)
+                                    .setNonce(java.util.UUID.randomUUID().toString())
                                     .build()
 
                                 val request = GetCredentialRequest.Builder()
                                     .addCredentialOption(googleIdOption)
                                     .build()
 
-                                val result = credentialManager.getCredential(context, request)
-                                onLoginSuccess(false)
+                                Timber.d("Starting Google Sign In with 10s timeout...")
+                                val result = withTimeoutOrNull(10000) {
+                                    credentialManager.getCredential(context, request)
+                                }
+
+                                if (result == null) {
+                                    Timber.e("Google Sign In Timed Out")
+                                    errorMessage = "Sign in timed out. Please check your internet connection or Google Play Services."
+                                    return@launch
+                                }
+                                
+                                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
+                                val displayName = googleIdTokenCredential.displayName ?: "Google User"
+                                Timber.d("Google Sign In Success: $displayName")
+                                
+                                homeViewModel.saveUser(displayName) {
+                                    onLoginSuccess(false)
+                                }
                             } catch (e: GetCredentialException) {
+                                Timber.e(e, "Google Sign In Failed: ${e.type}")
                                 errorMessage = "Google Sign In Failed: ${e.message}"
+                            } catch (e: Exception) {
+                                Timber.e(e, "Unexpected error during Google Sign In")
+                                errorMessage = "An error occurred: ${e.message}"
                             }
                         }
                     }

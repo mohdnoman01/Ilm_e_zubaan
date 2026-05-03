@@ -21,7 +21,7 @@ class GeminiWordRepository @Inject constructor(
 ) {
     private val apiKey: String = BuildConfig.GEMINI_API_KEY
     private val primaryModel: String = "models/gemini-2.5-flash"
-    private val fallbackModel: String = "models/gemini-2.0-flash"
+    private val fallbackModel: String = "models/gemini-2.5-flash-lite"
     companion object {
         private const val TAG = "GeminiWordRepository"
     }

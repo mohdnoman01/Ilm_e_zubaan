@@ -31,18 +31,15 @@ class ConceptRepository(
         entities.map { it.toDomain() }
     }
 
-    private suspend fun ensureAuthenticated(): Boolean {
+    private suspend fun signInAnonymouslyIfNeeded() {
         if (auth.currentUser == null) {
-            return try {
+            try {
                 auth.signInAnonymously().await()
                 Log.d("FirebaseSync", "Signed in anonymously: ${auth.currentUser?.uid}")
-                true
             } catch (e: Exception) {
-                Log.e("FirebaseSync", "Anonymous sign-in failed", e)
-                false
+                Log.w("FirebaseSync", "Anonymous sign-in failed; trying public database read.", e)
             }
         }
-        return true
     }
 
     fun getMetadata(langId: String): Flow<LanguageMetadata?> {
@@ -52,61 +49,51 @@ class ConceptRepository(
     suspend fun syncConcepts() = withContext(Dispatchers.IO) {
         try {
             Log.d("FirebaseSync", "Starting Sync... User: ${auth.currentUser?.uid}")
-            if (!ensureAuthenticated()) {
-                Log.e("FirebaseSync", "Sync failed: Not authenticated")
-                return@withContext
-            }
+            signInAnonymouslyIfNeeded()
 
-            val snapshot = dbRef.get().await()
+            val languagesSnapshot = dbRef.child("Languages").get().await()
+            val snapshot = if (languagesSnapshot.exists()) languagesSnapshot else dbRef.get().await()
 
             if (!snapshot.exists()) {
                 Log.e("FirebaseSync", "Database is empty!")
                 return@withContext
             }
 
-            // Data structure handle karne ke liye check
-            val languagesNode = snapshot.child("Languages")
-            val targetSnapshot = if (languagesNode.exists()) languagesNode else snapshot
-
             val allRemoteConcepts = mutableListOf<ConceptEntity>()
 
-            targetSnapshot.children.forEach { langFolder ->
+            snapshot.children.forEach { langFolder ->
                 val langName = langFolder.key?.lowercase() ?: return@forEach
                 if (langName == "language_metadata" || langName == "users" || langName == "languages") return@forEach
 
                 langFolder.children.forEach { conceptSnapshot ->
                     val data = conceptSnapshot
-                    val english = data.child("english_meaning").value?.toString()
-                        ?: data.child("english").value?.toString()
-                        ?: ""
+                    val english = data.firstString("english_meaning", "englishMeaning", "english", "meaning")
                     
                     if (english.isNotEmpty()) {
                         val id = "${langName}_${data.key}"
-                        val category = data.child("category").value?.toString() ?: "General"
-                        val level = data.child("level").value?.toString() ?: "Basic"
-                        val context = data.child("context").value?.toString()
-                        val audioUrl = data.child("audio_url").value?.toString() ?: ""
+                        val category = data.firstString("category").ifBlank { "General" }
+                        val level = data.firstString("level", "difficultyLevel").ifBlank { "Basic" }
+                        val context = data.firstString("context").ifBlank { null }
+                        val audioUrl = data.firstString("audio_url", "audioUrl")
                         
-                        val example = data.child("${langName}_example").value?.toString()
-                            ?: data.child("example").value?.toString()
-                            ?: ""
+                        val example = data.firstString("${langName}_example", "example")
                         
-                        val exampleMeaning = data.child("${langName}_example_meaning").value?.toString()
-                            ?: data.child("example_meaning").value?.toString()
-                            ?: ""
+                        val exampleMeaning = data.firstString("${langName}_example_meaning", "example_meaning", "exampleMeaning")
                         
                         val languages = mutableMapOf<String, LanguageDetail>()
                         
-                        val nativeScript = data.child("${langName}_shahmukhi").value?.toString()
-                            ?: data.child("${langName}_script").value?.toString()
-                            ?: data.child("urdu_meaning").value?.toString()
-                            ?: data.child("native_script").value?.toString()
-                            ?: data.child("script").value?.toString()
-                            ?: ""
+                        val nativeScript = data.firstString(
+                            "${langName}_shahmukhi",
+                            "${langName}_script",
+                            "urdu_meaning",
+                            "native_script",
+                            "script",
+                            "word"
+                        )
 
                         languages[langName] = LanguageDetail(
                             script = nativeScript,
-                            roman = data.child("roman").value?.toString() ?: "",
+                            roman = data.firstString("roman", "pronunciation", "transliteration"),
                             audioUrl = audioUrl,
                             example = example,
                             exampleMeaning = exampleMeaning
@@ -131,6 +118,8 @@ class ConceptRepository(
                 conceptDao.deleteAll()
                 conceptDao.insertConcepts(allRemoteConcepts)
                 Log.d("FirebaseSync", "Successfully synced ${allRemoteConcepts.size} concepts.")
+            } else {
+                Log.e("FirebaseSync", "Sync finished with zero concepts. Check Firebase field names and read rules.")
             }
         } catch (e: Exception) {
             Log.e("FirebaseSync", "Sync failed: ${e.message}", e)
@@ -139,7 +128,7 @@ class ConceptRepository(
 
     suspend fun syncMetadata() = withContext(Dispatchers.IO) {
         try {
-            if (!ensureAuthenticated()) return@withContext
+            signInAnonymouslyIfNeeded()
             val snapshot = dbRef.child("language_metadata").get().await()
             snapshot.children.forEach { child ->
                 val entity = LanguageMetadataEntity(
@@ -186,4 +175,12 @@ class ConceptRepository(
         region = region,
         lifestyleBrief = lifestyleBrief
     )
+
+    private fun com.google.firebase.database.DataSnapshot.firstString(vararg keys: String): String {
+        for (key in keys) {
+            val value = child(key).value?.toString()?.trim()
+            if (!value.isNullOrEmpty() && value != "null") return value
+        }
+        return ""
+    }
 }
