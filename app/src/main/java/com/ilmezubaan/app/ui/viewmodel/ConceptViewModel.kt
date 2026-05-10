@@ -27,7 +27,9 @@ class ConceptViewModel @Inject constructor(private val repository: ConceptReposi
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        syncData()
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            syncData()
+        }
     }
 
     fun syncData() {

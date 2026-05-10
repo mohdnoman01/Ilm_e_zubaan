@@ -1,10 +1,15 @@
 package com.ilmezubaan.app.ui.screens
 
+import android.content.ActivityNotFoundException
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +44,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -49,11 +56,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ilmezubaan.app.data.model.Lesson
+import com.ilmezubaan.app.speech.SpeechText
+import com.ilmezubaan.app.speech.TtsLocaleRegistry
+import com.ilmezubaan.app.speech.TtsManager
 import com.ilmezubaan.app.ui.theme.DarkBg
 import com.ilmezubaan.app.ui.theme.DarkSurface
 import com.ilmezubaan.app.ui.theme.DarkSurfaceLighter
@@ -70,11 +80,41 @@ fun VocabularyScreen(
     language: String,
     nativeLanguage: String,
     onBack: () -> Unit,
-    onLessonClick: (Lesson) -> Unit,
     conceptViewModel: ConceptViewModel
 ) {
     val concepts by conceptViewModel.concepts.collectAsState()
     var selectedCategory by remember { mutableStateOf("All") }
+    val context = LocalContext.current
+    val ttsManager = remember { TtsManager(context) }
+    val installTtsDataLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { }
+    val checkTtsDataLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (ttsManager.shouldPromptForMissingData(result.resultCode)) {
+            ttsManager.markInstallPromptShown()
+            try {
+                installTtsDataLauncher.launch(ttsManager.installDataIntent())
+            } catch (_: ActivityNotFoundException) {
+                // Some devices ship without a separate TTS data installer. Speaking still falls back safely.
+            }
+        }
+    }
+
+    LaunchedEffect(ttsManager) {
+        try {
+            checkTtsDataLauncher.launch(ttsManager.checkDataIntent())
+        } catch (_: ActivityNotFoundException) {
+            // TTS may still be available through the default engine even if this check activity is absent.
+        }
+    }
+
+    DisposableEffect(ttsManager) {
+        onDispose {
+            ttsManager.shutdown()
+        }
+    }
 
     // Case-insensitive filtering and handling both current structure and nested structure
     val displayConcepts = concepts.filter { concept ->
@@ -152,6 +192,13 @@ fun VocabularyScreen(
                     val nativeLangData = nativeLangKey?.let { concept.languages[it] }
                     
                     if (learnLangData != null) {
+                        val learningLanguageCode = TtsLocaleRegistry.codeFor(learnLangKey ?: language)
+                        val nativeLanguageCode = if (nativeLangData != null) {
+                            TtsLocaleRegistry.codeFor(nativeLangKey ?: nativeLanguage)
+                        } else {
+                            TtsLocaleRegistry.codeFor("English")
+                        }
+
                         VocabularyFlashcard(
                             nativeText = learnLangData.script,
                             explanationText = nativeLangData?.script ?: concept.englishMeaning,
@@ -161,15 +208,10 @@ fun VocabularyScreen(
                             context = concept.context,
                             example = learnLangData.example,
                             exampleMeaning = learnLangData.exampleMeaning,
-                            onPlayAudio = { 
-                                onLessonClick(
-                                    Lesson(
-                                        title = learnLangData.script,
-                                        type = "AUDIO",
-                                        subtitle = nativeLangData?.script ?: concept.englishMeaning,
-                                        audioUrl = learnLangData.audioUrl
-                                    )
-                                )
+                            learningLanguageCode = learningLanguageCode,
+                            explanationLanguageCode = nativeLanguageCode,
+                            onPlayAudio = { speechText ->
+                                ttsManager.speak(speechText)
                             }
                         )
                     }
@@ -189,23 +231,38 @@ fun VocabularyFlashcard(
     context: String?,
     example: String?,
     exampleMeaning: String?,
-    onPlayAudio: () -> Unit
+    learningLanguageCode: String,
+    explanationLanguageCode: String,
+    onPlayAudio: (SpeechText) -> Unit
 ) {
     var flipState by remember { mutableIntStateOf(0) } // 0: Word, 1: Meaning, 2: Example
     val rotation by animateFloatAsState(
         targetValue = flipState * 180f,
-        animationSpec = tween(durationMillis = 600), label = ""
+        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing), label = "flashcardRotation"
     )
+    val interactionSource = remember { MutableInteractionSource() }
+    val wordSpeech = remember(nativeText, learningLanguageCode) {
+        SpeechText(nativeText, learningLanguageCode)
+    }
+    val explanationSpeech = remember(explanationText, explanationLanguageCode) {
+        SpeechText(explanationText, explanationLanguageCode)
+    }
+    val exampleSpeech = remember(example, nativeText, learningLanguageCode) {
+        SpeechText(example?.takeIf { it.isNotBlank() } ?: nativeText, learningLanguageCode)
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(228.dp)
             .graphicsLayer {
                 rotationY = rotation
                 cameraDistance = 12f * density
             }
-            .clickable { flipState = (flipState + 1) % 3 }
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { flipState = (flipState + 1) % 3 }
     ) {
         val isBack = (rotation % 360f) in 90f..270f
         
@@ -216,7 +273,7 @@ fun VocabularyFlashcard(
                         category = category,
                         color = DarkSurface,
                         dotsIndex = 0,
-                        onPlay = onPlayAudio,
+                        onPlay = { onPlayAudio(wordSpeech) },
                         content = {
                             Text(nativeText, fontSize = 42.sp, fontWeight = FontWeight.Bold, color = TextWhite, textAlign = TextAlign.Center)
                             if (romanText.isNotEmpty()) Text(romanText, color = NeonCyan, fontSize = 16.sp)
@@ -229,7 +286,7 @@ fun VocabularyFlashcard(
                         color = DarkSurfaceLighter,
                         dotsIndex = 1,
                         borderColor = NeonPurple.copy(0.4f),
-                        onPlay = onPlayAudio,
+                        onPlay = { onPlayAudio(explanationSpeech) },
                         content = {
                             Text(explanationText, fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextWhite, textAlign = TextAlign.Center)
                             Text(
@@ -247,7 +304,7 @@ fun VocabularyFlashcard(
                         color = DarkSurface,
                         dotsIndex = 2,
                         borderColor = NeonOrange.copy(0.4f),
-                        onPlay = onPlayAudio,
+                        onPlay = { onPlayAudio(exampleSpeech) },
                         content = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Lightbulb, contentDescription = null, tint = NeonOrange, modifier = Modifier.size(20.dp))
@@ -291,22 +348,33 @@ fun FlashcardFace(
         modifier = Modifier.fillMaxSize(),
         shape = RoundedCornerShape(32.dp),
         color = color,
-        border = BorderStroke(1.dp, borderColor)
+        border = BorderStroke(1.dp, borderColor),
+        tonalElevation = 2.dp,
+        shadowElevation = 8.dp
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Surface(shape = RoundedCornerShape(8.dp), color = NeonCyan.copy(0.1f)) {
                     Text(category.uppercase(), modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = NeonCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.VolumeUp, 
-                    contentDescription = "Play Audio", 
-                    tint = TextGrey, 
-                    modifier = Modifier.size(18.dp).clickable { onPlay() }
-                )
+                Surface(
+                    onClick = onPlay,
+                    shape = CircleShape,
+                    color = NeonCyan.copy(0.1f),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = "Play pronunciation",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.weight(1f))

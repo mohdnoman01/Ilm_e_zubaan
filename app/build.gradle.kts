@@ -17,9 +17,14 @@ val localProperties = Properties().apply {
     }
 }
 
-val geminiApiKey =
-    (project.findProperty("GEMINI_API_KEY") as String?)
-        ?: localProperties.getProperty("GEMINI_API_KEY")?.takeIf { it.isNotBlank() }
+val geminiApiKey1 =
+    (project.findProperty("GEMINI_API_KEY_1") as String?)
+        ?: localProperties.getProperty("GEMINI_API_KEY_1")?.takeIf { it.isNotBlank() }
+        ?: ""
+
+val geminiApiKey2 =
+    (project.findProperty("GEMINI_API_KEY_2") as String?)
+        ?: localProperties.getProperty("GEMINI_API_KEY_2")?.takeIf { it.isNotBlank() }
         ?: ""
 
 android {
@@ -34,7 +39,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
+        buildConfigField("String", "GEMINI_API_KEY_1", "\"$geminiApiKey1\"")
+        buildConfigField("String", "GEMINI_API_KEY_2", "\"$geminiApiKey2\"")
     }
 
     ksp {
@@ -94,6 +100,10 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
+    // Media3
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
 
     // Firebase dependencies
     implementation(platform(libs.firebase.bom))

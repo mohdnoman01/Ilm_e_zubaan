@@ -4,50 +4,46 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.gson.Gson
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.toRoute
 import com.ilmezubaan.app.ui.screens.*
-import com.ilmezubaan.app.data.repository.UserStatsRepository
 import com.ilmezubaan.app.ui.viewmodel.ConceptViewModel
 import com.ilmezubaan.app.ui.viewmodel.HomeViewModel
 import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
 import com.ilmezubaan.app.ui.viewmodel.WordInsightViewModel
-import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
+    
+    // Scoped to the entire activity to prevent redundant initialization
+    val homeViewModel: HomeViewModel = hiltViewModel()
+    val languageViewModel: LanguageViewModel = hiltViewModel()
+    val conceptViewModel: ConceptViewModel = hiltViewModel()
 
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.LOGIN
+        startDestination = Route.Login
     ) {
-        composable(NavRoutes.LOGIN) {
-            val homeViewModel: HomeViewModel = hiltViewModel()
+        composable<Route.Login> {
             val userStats by homeViewModel.userStats.collectAsState()
             
             LoginScreen(
                 onLoginSuccess = { isNewUser ->
                     if (isNewUser) {
-                        navController.navigate(NavRoutes.LANGUAGE_NATIVE) {
-                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        navController.navigate(Route.LanguageNative) {
+                            popUpTo(Route.Login) { inclusive = true }
                         }
                     } else if (userStats.selectedLanguageName != null && userStats.nativeLanguageName != null) {
-                        navController.navigate(NavRoutes.HOME) {
-                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        navController.navigate(Route.Home) {
+                            popUpTo(Route.Login) { inclusive = true }
                         }
                     } else {
-                        navController.navigate(NavRoutes.LANGUAGE_NATIVE) {
-                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        navController.navigate(Route.LanguageNative) {
+                            popUpTo(Route.Login) { inclusive = true }
                         }
                     }
                 },
@@ -55,40 +51,37 @@ fun AppNavGraph() {
             )
         }
 
-        composable(NavRoutes.HOME) {
-            val homeViewModel: HomeViewModel = hiltViewModel()
-            val languageViewModel: LanguageViewModel = hiltViewModel()
+        composable<Route.Home> {
             HomeScreen(
                 onLanguageClick = {
-                    navController.navigate(NavRoutes.LANGUAGE_LEARN)
+                    navController.navigate(Route.LanguageLearn)
                 },
                 onLessonClick = { language ->
-                    navController.navigate("${NavRoutes.LESSONS}/$language")
+                    navController.navigate(Route.Lessons(language))
                 },
                 onProfileClick = {
-                    navController.navigate(NavRoutes.PROFILE)
+                    navController.navigate(Route.Profile)
                 },
                 onLiteracyClick = {
-                    navController.navigate(NavRoutes.LITERACY)
+                    navController.navigate(Route.Literacy)
                 },
                 onVocabularyClick = {
-                    navController.navigate(NavRoutes.VOCABULARY)
+                    navController.navigate(Route.Vocabulary)
                 },
                 onAIClick = {
-                    navController.navigate(NavRoutes.AI)
+                    navController.navigate(Route.AI)
                 },
                 languageViewModel = languageViewModel,
                 homeViewModel = homeViewModel
             )
         }
 
-        composable(NavRoutes.LANGUAGE_NATIVE) {
-            val languageViewModel: LanguageViewModel = hiltViewModel()
+        composable<Route.LanguageNative> {
             LanguageSelectScreen(
                 title = "What is your native language?",
                 subtitle = "We will use this to explain words to you",
                 onLanguageChosen = { 
-                    navController.navigate(NavRoutes.LANGUAGE_LEARN)
+                    navController.navigate(Route.LanguageLearn)
                 },
                 onSelect = { language ->
                     languageViewModel.setNativeLanguage(language)
@@ -97,15 +90,14 @@ fun AppNavGraph() {
             )
         }
 
-        composable(NavRoutes.LANGUAGE_LEARN) {
-            val languageViewModel: LanguageViewModel = hiltViewModel()
+        composable<Route.LanguageLearn> {
             LanguageSelectScreen(
                 title = "What language do you want to learn?",
                 subtitle = "Select the regional language you're interested in",
                 onLanguageChosen = { 
-                    navController.navigate(NavRoutes.HOME) {
-                        popUpTo(NavRoutes.LANGUAGE_NATIVE) { inclusive = true }
-                        popUpTo(NavRoutes.LANGUAGE_LEARN) { inclusive = true }
+                    navController.navigate(Route.Home) {
+                        popUpTo(Route.LanguageNative) { inclusive = true }
+                        popUpTo(Route.LanguageLearn) { inclusive = true }
                     }
                 },
                 onSelect = { language ->
@@ -115,9 +107,7 @@ fun AppNavGraph() {
             )
         }
 
-        composable(NavRoutes.VOCABULARY) {
-            val languageViewModel: LanguageViewModel = hiltViewModel()
-            val conceptViewModel: ConceptViewModel = hiltViewModel()
+        composable<Route.Vocabulary> {
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
             val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
             
@@ -125,47 +115,38 @@ fun AppNavGraph() {
                 language = selectedLanguage.name,
                 nativeLanguage = nativeLanguage?.name ?: "English",
                 onBack = { navController.popBackStack() },
-                onLessonClick = { lesson ->
-                    val encodedTitle = Uri.encode(lesson.title)
-                    val encodedType = Uri.encode(lesson.type)
-                    navController.navigate("${NavRoutes.PLAYER}/$encodedTitle/$encodedType")
-                },
                 conceptViewModel = conceptViewModel
             )
         }
 
-        composable(NavRoutes.LITERACY) {
-            val languageViewModel: LanguageViewModel = hiltViewModel()
+        composable<Route.Literacy> {
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
             LiteracyScreen(
                 language = selectedLanguage.name,
                 onBack = { navController.popBackStack() },
                 onLessonClick = { lesson ->
-                    val encodedTitle = Uri.encode(lesson.title)
-                    val encodedType = Uri.encode(lesson.type)
-                    navController.navigate("${NavRoutes.PLAYER}/$encodedTitle/$encodedType")
+                    navController.navigate(Route.Player(lesson.title, lesson.type, lesson.audioUrl))
                 }
             )
         }
 
-        composable(NavRoutes.PROFILE) {
-            val homeViewModel: HomeViewModel = hiltViewModel()
+        composable<Route.Profile> {
             val userStats by homeViewModel.userStats.collectAsState()
             ProfileScreen(
                 userStats = userStats,
                 onBack = { navController.popBackStack() },
                 onLogout = {
-                    navController.navigate(NavRoutes.LOGIN) {
+                    navController.navigate(Route.Login) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
                 onPrivacySettingsClick = {
-                    navController.navigate(NavRoutes.PRIVACY_SETTINGS)
+                    navController.navigate(Route.PrivacySettings)
                 },
                 onUpdateAvatar = { homeViewModel.updateAvatar(it) },
                 onClearData = {
                     homeViewModel.clearAllData {
-                        navController.navigate(NavRoutes.LOGIN) {
+                        navController.navigate(Route.Login) {
                             popUpTo(0) { inclusive = true }
                         }
                     }
@@ -173,14 +154,13 @@ fun AppNavGraph() {
             )
         }
 
-        composable(NavRoutes.PRIVACY_SETTINGS) {
+        composable<Route.PrivacySettings> {
             PrivacySettingsScreen(
                 onBack = { navController.popBackStack() }
             )
         }
 
-        composable(NavRoutes.AI) {
-            val languageViewModel: LanguageViewModel = hiltViewModel()
+        composable<Route.AI> {
             val wordInsightViewModel: WordInsightViewModel = hiltViewModel()
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
             val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
@@ -192,45 +172,29 @@ fun AppNavGraph() {
             )
         }
 
-        composable(
-            route = "${NavRoutes.LESSONS}/{language}",
-            arguments = listOf(
-                navArgument("language") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val conceptViewModel: ConceptViewModel = hiltViewModel()
-            val language = backStackEntry.arguments?.getString("language") ?: "Unknown"
-
+        composable<Route.Lessons> { backStackEntry ->
+            val route: Route.Lessons = backStackEntry.toRoute()
+            
             LessonListScreen(
-                language = language,
+                language = route.language,
                 onLessonClick = { lesson ->
-                    val encodedTitle = Uri.encode(lesson.title)
-                    val encodedType = Uri.encode(lesson.type)
-                    navController.navigate("${NavRoutes.PLAYER}/$encodedTitle/$encodedType")
+                    navController.navigate(Route.Player(lesson.title, lesson.type, lesson.audioUrl))
                 },
                 conceptViewModel = conceptViewModel
             )
         }
 
-        composable(
-            route = "${NavRoutes.PLAYER}/{title}/{type}",
-            arguments = listOf(
-                navArgument("title") { type = NavType.StringType },
-                navArgument("type") { type = NavType.StringType }
-            )
-        ) { backStackEntry ->
-            val languageViewModel: LanguageViewModel = hiltViewModel()
-            val conceptViewModel: ConceptViewModel = hiltViewModel()
-            val title = backStackEntry.arguments?.getString("title") ?: "Lesson"
-            val type = backStackEntry.arguments?.getString("type") ?: "AUDIO"
+        composable<Route.Player> { backStackEntry ->
+            val route: Route.Player = backStackEntry.toRoute()
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
 
             AudioVideoScreen(
-                lessonTitle = title,
-                lessonType = type,
+                lessonTitle = route.title,
+                lessonType = route.type,
                 onBack = { navController.popBackStack() },
                 conceptViewModel = conceptViewModel,
-                language = selectedLanguage.name
+                language = selectedLanguage.name,
+                audioUrl = route.audioUrl
             )
         }
     }

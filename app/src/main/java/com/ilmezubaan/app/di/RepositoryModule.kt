@@ -3,6 +3,7 @@ package com.ilmezubaan.app.di
 import com.ilmezubaan.app.data.local.dao.UserStatsDao
 import com.ilmezubaan.app.data.local.dao.ConceptDao
 import com.ilmezubaan.app.data.local.dao.LanguageMetadataDao
+import com.ilmezubaan.app.data.local.dao.WordInsightDao
 import com.ilmezubaan.app.data.repository.UserStatsRepository
 import com.ilmezubaan.app.data.repository.ConceptRepository
 import dagger.Module
@@ -32,9 +33,10 @@ object RepositoryModule {
     @Singleton
     fun provideGeminiWordRepository(
         apiService: GeminiApiService,
-        gson: Gson
+        gson: Gson,
+        wordInsightDao: WordInsightDao
     ): GeminiWordRepository {
-        return GeminiWordRepository(apiService, gson)
+        return GeminiWordRepository(apiService, gson, wordInsightDao)
     }
 
     @Provides
@@ -52,8 +54,9 @@ object RepositoryModule {
     fun provideConceptRepository(
         conceptDao: ConceptDao,
         metadataDao: LanguageMetadataDao,
-        firebaseDatabase: com.google.firebase.database.FirebaseDatabase
+        firebaseDatabase: com.google.firebase.database.FirebaseDatabase,
+        auth: com.google.firebase.auth.FirebaseAuth
     ): ConceptRepository {
-        return ConceptRepository(conceptDao, metadataDao, firebaseDatabase)
+        return ConceptRepository(conceptDao, metadataDao, firebaseDatabase, auth)
     }
 }

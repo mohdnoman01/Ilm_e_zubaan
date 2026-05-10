@@ -12,6 +12,7 @@ interface ConceptDao {
     @Query("SELECT * FROM concepts WHERE conceptId = :id")
     suspend fun getConceptById(id: String): ConceptEntity?
 
+    @Transaction
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertConcepts(concepts: List<ConceptEntity>)
 

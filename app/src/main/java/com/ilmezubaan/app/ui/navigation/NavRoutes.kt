@@ -20,7 +20,11 @@ sealed interface Route {
     data class Lessons(val language: String) : Route
     
     @Serializable
-    data class Player(val title: String, val type: String) : Route
+    data class Player(
+        val title: String, 
+        val type: String,
+        val audioUrl: String? = null
+    ) : Route
     
     @Serializable
     data object Profile : Route

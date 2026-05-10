@@ -6,6 +6,7 @@ import com.ilmezubaan.app.data.local.AppDatabase
 import com.ilmezubaan.app.data.local.dao.UserStatsDao
 import com.ilmezubaan.app.data.local.dao.ConceptDao
 import com.ilmezubaan.app.data.local.dao.LanguageMetadataDao
+import com.ilmezubaan.app.data.local.dao.WordInsightDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,4 +32,7 @@ object DatabaseModule {
 
     @Provides
     fun provideLanguageMetadataDao(database: AppDatabase): LanguageMetadataDao = database.languageMetadataDao()
+
+    @Provides
+    fun provideWordInsightDao(database: AppDatabase): WordInsightDao = database.wordInsightDao()
 }

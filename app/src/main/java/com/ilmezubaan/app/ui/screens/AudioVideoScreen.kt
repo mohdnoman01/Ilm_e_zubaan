@@ -1,6 +1,5 @@
 package com.ilmezubaan.app.ui.screens
 
-import android.media.MediaPlayer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,10 +37,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.ilmezubaan.app.ui.theme.AppTeal
 import com.ilmezubaan.app.ui.theme.TextDark
 import com.ilmezubaan.app.ui.theme.TextGrey
 import com.ilmezubaan.app.ui.viewmodel.ConceptViewModel
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,15 +56,41 @@ fun AudioVideoScreen(
     lessonType: String,
     onBack: () -> Unit,
     conceptViewModel: ConceptViewModel,
-    language: String
+    language: String,
+    audioUrl: String? = null
 ) {
-    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
     
-    DisposableEffect(Unit) {
+    val exoPlayer = remember(audioUrl) {
+        ExoPlayer.Builder(context).build().apply {
+            addListener(object : androidx.media3.common.Player.Listener {
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    Timber.e(error, "ExoPlayer Error: ${error.message} - URL: $audioUrl")
+                    isPlaying = false
+                }
+                
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == androidx.media3.common.Player.STATE_ENDED) {
+                        isPlaying = false
+                    }
+                }
+            })
+            
+            if (!audioUrl.isNullOrBlank()) {
+                val mediaItem = MediaItem.Builder()
+                    .setUri(audioUrl)
+                    .setMimeType(if (lessonType == "VIDEO") MimeTypes.VIDEO_MP4 else MimeTypes.AUDIO_MPEG)
+                    .build()
+                setMediaItem(mediaItem)
+                prepare()
+            }
+        }
+    }
+    
+    DisposableEffect(exoPlayer) {
         onDispose {
-            mediaPlayer?.release()
-            mediaPlayer = null
+            exoPlayer.release()
         }
     }
 
@@ -116,19 +148,43 @@ fun AudioVideoScreen(
                 }
             }
 
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(32.dp))
+            
+            // Video Player if it's a video lesson
+            if (lessonType == "VIDEO" && !audioUrl.isNullOrBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    AndroidView(
+                        factory = { context ->
+                            PlayerView(context).apply {
+                                player = exoPlayer
+                                useController = true
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                Spacer(Modifier.height(32.dp))
+            }
 
             // Audio Controls
             Surface(
                 modifier = Modifier.size(80.dp),
                 shape = RoundedCornerShape(24.dp),
-                color = AppTeal,
+                color = if (audioUrl.isNullOrBlank()) Color.LightGray else AppTeal,
                 onClick = {
-                    if (isPlaying) {
-                        mediaPlayer?.pause()
-                        isPlaying = false
-                    } else {
-                        // Audio logic can be implemented here
+                    if (!audioUrl.isNullOrBlank()) {
+                        if (isPlaying) {
+                            exoPlayer.pause()
+                        } else {
+                            exoPlayer.play()
+                        }
+                        isPlaying = !isPlaying
                     }
                 }
             ) {
@@ -144,10 +200,14 @@ fun AudioVideoScreen(
             
             Spacer(Modifier.height(16.dp))
             Text(
-                text = if (isPlaying) "Playing Audio..." else "Tap to Listen",
+                text = when {
+                    audioUrl.isNullOrBlank() -> "Media Not Available"
+                    isPlaying -> "Playing..."
+                    else -> "Tap to Start"
+                },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = TextDark
+                color = if (audioUrl.isNullOrBlank()) TextGrey else TextDark
             )
         }
     }

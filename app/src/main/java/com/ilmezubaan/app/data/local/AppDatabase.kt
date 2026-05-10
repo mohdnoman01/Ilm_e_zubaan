@@ -9,13 +9,20 @@ import com.ilmezubaan.app.data.local.converters.LanguageConverter
 import com.ilmezubaan.app.data.local.dao.UserStatsDao
 import com.ilmezubaan.app.data.local.dao.ConceptDao
 import com.ilmezubaan.app.data.local.dao.LanguageMetadataDao
+import com.ilmezubaan.app.data.local.dao.WordInsightDao
 import com.ilmezubaan.app.data.local.entities.UserStats
 import com.ilmezubaan.app.data.local.entities.ConceptEntity
 import com.ilmezubaan.app.data.local.entities.LanguageMetadataEntity
+import com.ilmezubaan.app.data.local.entities.WordInsightEntity
 
 @Database(
-    entities = [UserStats::class, ConceptEntity::class, LanguageMetadataEntity::class],
-    version = 10,
+    entities = [
+        UserStats::class,
+        ConceptEntity::class,
+        LanguageMetadataEntity::class,
+        WordInsightEntity::class
+    ],
+    version = 11,
     exportSchema = true
 )
 @TypeConverters(LanguageConverter::class)
@@ -23,6 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun userStatsDao(): UserStatsDao
     abstract fun conceptDao(): ConceptDao
     abstract fun languageMetadataDao(): LanguageMetadataDao
+    abstract fun wordInsightDao(): WordInsightDao
 
     companion object {
         @Volatile

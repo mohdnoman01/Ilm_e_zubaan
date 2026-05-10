@@ -71,13 +71,17 @@ fun LessonCard(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(NeonPurple.copy(0.1f), CircleShape),
+                    .background(
+                        if (lesson.audioUrl.isNullOrBlank()) Color.Gray.copy(0.1f) 
+                        else NeonPurple.copy(0.1f), 
+                        CircleShape
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = null,
-                    tint = NeonPurple,
+                    tint = if (lesson.audioUrl.isNullOrBlank()) Color.Gray else NeonPurple,
                     modifier = Modifier.size(24.dp)
                 )
             }

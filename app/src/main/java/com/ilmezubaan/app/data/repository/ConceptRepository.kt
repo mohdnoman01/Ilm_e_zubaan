@@ -14,6 +14,7 @@ import com.ilmezubaan.app.data.model.LanguageDetail
 import com.ilmezubaan.app.data.model.LanguageMetadata
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -21,15 +22,15 @@ import kotlinx.coroutines.withContext
 class ConceptRepository(
     private val conceptDao: ConceptDao,
     private val metadataDao: LanguageMetadataDao,
-    private val firebaseDatabase: FirebaseDatabase
+    private val firebaseDatabase: FirebaseDatabase,
+    private val auth: FirebaseAuth
 ) {
     private val gson = Gson()
     private val dbRef = firebaseDatabase.reference
-    private val auth = FirebaseAuth.getInstance()
 
     val allConcepts: Flow<List<Concept>> = conceptDao.getAllConcepts().map { entities ->
         entities.map { it.toDomain() }
-    }
+    }.flowOn(Dispatchers.Default)
 
     private suspend fun signInAnonymouslyIfNeeded() {
         if (auth.currentUser == null) {
@@ -37,7 +38,8 @@ class ConceptRepository(
                 auth.signInAnonymously().await()
                 Log.d("FirebaseSync", "Signed in anonymously: ${auth.currentUser?.uid}")
             } catch (e: Exception) {
-                Log.w("FirebaseSync", "Anonymous sign-in failed; trying public database read.", e)
+                Log.w("FirebaseSync", "Anonymous sign-in failed; trying public database read. " +
+                        "Note: Ensure 'Anonymous' provider is enabled in Firebase Console > Authentication > Sign-in method.", e)
             }
         }
     }
@@ -46,7 +48,14 @@ class ConceptRepository(
         return metadataDao.getMetadata(langId).map { it?.toDomain() }
     }
 
-    suspend fun syncConcepts() = withContext(Dispatchers.IO) {
+    private var lastSyncTime = 0L
+    private val SYNC_INTERVAL = 3600_000L // 1 hour
+
+    suspend fun syncConcepts(force: Boolean = false) = withContext(Dispatchers.IO) {
+        if (!force && System.currentTimeMillis() - lastSyncTime < SYNC_INTERVAL) {
+            Log.d("FirebaseSync", "Sync skipped: recently updated")
+            return@withContext
+        }
         try {
             Log.d("FirebaseSync", "Starting Sync... User: ${auth.currentUser?.uid}")
             signInAnonymouslyIfNeeded()
@@ -115,8 +124,8 @@ class ConceptRepository(
             }
             
             if (allRemoteConcepts.isNotEmpty()) {
-                conceptDao.deleteAll()
                 conceptDao.insertConcepts(allRemoteConcepts)
+                lastSyncTime = System.currentTimeMillis()
                 Log.d("FirebaseSync", "Successfully synced ${allRemoteConcepts.size} concepts.")
             } else {
                 Log.e("FirebaseSync", "Sync finished with zero concepts. Check Firebase field names and read rules.")
