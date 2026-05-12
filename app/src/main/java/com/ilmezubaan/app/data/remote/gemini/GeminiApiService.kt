@@ -6,10 +6,10 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface GeminiApiService {
-    @POST("v1beta/{model}:generateContent")
+    @POST("v1beta/models/{model}:generateContent")
     suspend fun generateContent(
-        @Path("model", encoded = true) model: String,
+        @Path("model") model: String,
         @Query("key") apiKey: String,
-        @Body request: GeminiGenerateContentRequest
+        @Body request: GeminiGenerateContentRequest,
     ): GeminiGenerateContentResponse
 }

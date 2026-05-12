@@ -57,7 +57,7 @@ fun AIScreen(
     onBack: () -> Unit,
     learningLanguage: String,
     nativeLanguage: String,
-    viewModel: WordInsightViewModel
+    viewModel: WordInsightViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -114,14 +114,13 @@ fun AIScreen(
                 wordInput = wordInput,
                 onWordInputChange = { wordInput = it },
                 isLoading = uiState.isLoading,
-                onLookupClick = {
-                    viewModel.loadWordInsight(
-                        word = wordInput,
-                        learningLanguage = learningLanguage,
-                        nativeLanguage = nativeLanguage
-                    )
-                }
-            )
+            ) {
+                viewModel.loadWordInsight(
+                    word = wordInput,
+                    learningLanguage = learningLanguage,
+                    nativeLanguage = nativeLanguage
+                )
+            }
 
             if (uiState.isLoading) {
                 Surface(
@@ -157,7 +156,7 @@ fun AIWordLookupSection(
     wordInput: String,
     onWordInputChange: (String) -> Unit,
     isLoading: Boolean,
-    onLookupClick: () -> Unit
+    onLookupClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),

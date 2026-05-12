@@ -22,7 +22,6 @@ fun AppNavGraph() {
     // Scoped to the entire activity to prevent redundant initialization
     val homeViewModel: HomeViewModel = hiltViewModel()
     val languageViewModel: LanguageViewModel = hiltViewModel()
-    val conceptViewModel: ConceptViewModel = hiltViewModel()
 
     NavHost(
         navController = navController,
@@ -108,6 +107,7 @@ fun AppNavGraph() {
         }
 
         composable<Route.Vocabulary> {
+            val conceptViewModel: ConceptViewModel = hiltViewModel()
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
             val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
             
@@ -173,6 +173,7 @@ fun AppNavGraph() {
         }
 
         composable<Route.Lessons> { backStackEntry ->
+            val conceptViewModel: ConceptViewModel = hiltViewModel()
             val route: Route.Lessons = backStackEntry.toRoute()
             
             LessonListScreen(
@@ -185,6 +186,7 @@ fun AppNavGraph() {
         }
 
         composable<Route.Player> { backStackEntry ->
+            val conceptViewModel: ConceptViewModel = hiltViewModel()
             val route: Route.Player = backStackEntry.toRoute()
             val selectedLanguage by languageViewModel.selectedLanguage.collectAsState()
 

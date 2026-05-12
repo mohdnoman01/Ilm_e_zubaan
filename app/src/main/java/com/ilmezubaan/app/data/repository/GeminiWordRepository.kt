@@ -1,6 +1,5 @@
 package com.ilmezubaan.app.data.repository
 
-import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
@@ -15,12 +14,13 @@ import com.ilmezubaan.app.data.remote.gemini.GeminiPart
 import com.ilmezubaan.app.data.remote.gemini.WordInsight
 import kotlinx.coroutines.delay
 import retrofit2.HttpException
+import timber.log.Timber
 import javax.inject.Inject
 
 class GeminiWordRepository @Inject constructor(
     private val apiService: GeminiApiService,
     private val gson: Gson,
-    private val wordInsightDao: WordInsightDao
+    private val wordInsightDao: WordInsightDao,
 ) {
     // We use two API keys to avoid rate limits (HTTP 429)
     private val apiKeys: List<String> = listOf(
@@ -29,14 +29,9 @@ class GeminiWordRepository @Inject constructor(
     ).filter { it.isNotBlank() }
 
     private val models: List<String> = listOf(
-        "models/gemini-1.5-flash",
-        "models/gemini-2.0-flash-lite",
-        "models/gemini-1.5-flash-8b"
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite"
     )
-
-    companion object {
-        private const val TAG = "GeminiWordRepository"
-    }
 
     suspend fun getWordInsight(
         word: String,
@@ -49,7 +44,7 @@ class GeminiWordRepository @Inject constructor(
         runCatching {
             wordInsightDao.getInsight(cleanWord, learningLanguage, nativeLanguage)
         }.getOrNull()?.let { cached ->
-            Log.d(TAG, "Returning cached insight for: $cleanWord")
+            Timber.d("Returning cached insight for: $cleanWord")
             return Result.success(
                 WordInsight(
                     meaning = cached.meaning,
@@ -67,6 +62,8 @@ class GeminiWordRepository @Inject constructor(
         val request = createRequest(cleanWord, learningLanguage, nativeLanguage)
 
         // Try rotation logic: Each key with each model
+        val errors = mutableListOf<Throwable>()
+
         for (key in apiKeys) {
             for (model in models) {
                 val result = tryRequest(key, model, request)
@@ -77,25 +74,43 @@ class GeminiWordRepository @Inject constructor(
                     return Result.success(insight)
                 }
 
-                val error = result.exceptionOrNull()
-                if (error is HttpException && error.code() == 429) {
-                    Log.w(TAG, "Model $model with key hit 429. Trying next...")
-                    delay(500) // Small breather
+                val error = result.exceptionOrNull() ?: Exception("Unknown error")
+                errors.add(error)
+
+                if ((error is HttpException) && (error.code() == 429)) {
+                    Timber.w("Model $model with key hit 429. Trying next...")
+                    delay(300) // Small breather
                     continue 
+                } else {
+                    Timber.e(error, "Model $model failed with non-429 error: ${error.message}")
+                    // If it's a fatal error like 401/403, we might want to stop early, 
+                    // but let's try other keys just in case one is valid.
                 }
             }
         }
 
-        return Result.failure(IllegalStateException("All API keys and models exceeded quota. Please wait 1 minute and try again."))
+        val allAreQuota = errors.all { it is HttpException && it.code() == 429 }
+        return if (allAreQuota) {
+            Result.failure(IllegalStateException("All API keys and models exceeded quota. Please wait 1 minute and try again."))
+        } else {
+            val mostRelevantError = errors.find { it !is HttpException || it.code() != 429 } ?: errors.first()
+            Result.failure(mostRelevantError)
+        }
     }
 
     private suspend fun tryRequest(apiKey: String, model: String, request: GeminiGenerateContentRequest): Result<WordInsight> {
         return runCatching {
-            val response = apiService.generateContent(
-                model = model,
-                apiKey = apiKey,
-                request = request
-            )
+            val response = try {
+                apiService.generateContent(
+                    model = model,
+                    apiKey = apiKey,
+                    request = request
+                )
+            } catch (error: HttpException) {
+                val errorBody = error.response()?.errorBody()?.string()?.take(500)
+                Timber.e(error, "Gemini HTTP ${error.code()} from $model: $errorBody")
+                throw error
+            }
 
             val rawJson = response.candidates
                 ?.firstOrNull()
@@ -206,7 +221,7 @@ class GeminiWordRepository @Inject constructor(
             }
             insight
         }.getOrElse { error ->
-            Log.e(TAG, "Unable to parse Gemini response. raw=$rawJson", error)
+            Timber.e(error, "Unable to parse Gemini response. raw=$rawJson")
             throw IllegalStateException("Gemini returned an invalid or empty response. Please try again.")
         }
     }
@@ -241,7 +256,7 @@ class GeminiWordRepository @Inject constructor(
 
     private fun wordInsightFromJsonObject(jsonObject: JsonObject): WordInsight {
         fun valueFor(key: String): String {
-            return jsonObject.get(key)?.asString?.trim().orEmpty()
+            return jsonObject[key]?.asString?.trim().orEmpty()
         }
 
         return WordInsight(
@@ -256,7 +271,7 @@ class GeminiWordRepository @Inject constructor(
         fun extract(vararg labels: String): String {
             for (label in labels) {
                 val regex = Regex(
-                    pattern = """(?im)^["\s\{\[]*${Regex.escape(label)}["\s:=-]*(.+?)(?=^\s*[A-Za-z][A-Za-z _]*["\s:=-]|\z)""",
+                    pattern = """(?im)^["\s{\[]*${Regex.escape(label)}["\s:=-]*(.+?)(?=^\s*[A-Za-z][A-Za-z _]*["\s:=-]|\z)""",
                     options = setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
                 )
                 val match = regex.find(text)?.groupValues?.getOrNull(1)?.cleanExtractedValue()

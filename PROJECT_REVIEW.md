@@ -2,62 +2,59 @@
 
 ## High-level impression
 - The app has a clean baseline architecture for an Android Compose project: Room, ViewModels, repositories, navigation, and Firebase integration are all present.
-- Main risks are around **authentication/security**, **dependency/version management consistency**, and **error handling/observability**.
+- Main risks around **authentication/security**, **dependency management**, and **DI** have been largely addressed.
+- Remaining focus should be on **data migration strategy** and **robust error handling/observability**.
 
 ## What looks good
 - Clear layered separation across UI, ViewModels, local data, and repositories.
 - Room is used as a local source of truth for concepts/metadata.
 - Compose navigation graph is readable and organized around major screens.
 - User streak/xp progression logic is simple and understandable.
+- **Improved:** Dependency injection (Hilt) is now properly integrated.
+- **Improved:** Dependency management is centralized in `libs.versions.toml`.
 
 ## Key issues observed
 
-### 1) Authentication is currently not production-safe (High)
-- Credentials are being stored in SharedPreferences as plaintext (`putString(identifier, password)`), which is insecure for real users.
-- Google sign-in uses a placeholder server client ID (`"YOUR_SERVER_CLIENT_ID"`), so that flow is not production-ready.
-- Facebook button currently shortcuts directly to success (`onClick = { onLoginSuccess() }`).
+### 1) Authentication (Improved - Partially Production-ready)
+- ✅ **Fixed:** Credentials are now hashed/salted and stored in `EncryptedSharedPreferences` via `SecurityUtils`.
+- ✅ **Fixed:** Google sign-in now uses a real server client ID in `LoginScreen.kt`.
+- ⚠️ **Pending:** Facebook button still shortcuts directly to success (`onClick = { onLoginSuccess() }`).
+- ⚠️ **Pending:** Local auth is robust, but moving to full Firebase Auth for all providers is still recommended for long-term scalability.
 
-**Impact:** Security/compliance risk and potentially misleading login UX.
+**Impact:** significantly reduced security risk, but social login still needs completion.
 
-**Suggested fix:** Move to Firebase Auth or encrypted credential storage (Jetpack Security), hash/salt passwords if local auth remains, and wire real OAuth providers.
+### 2) Dependency management (Fixed)
+- ✅ **Fixed:** All dependencies and versions are now centralized in `libs.versions.toml`.
+- ✅ **Fixed:** Duplicate entries (e.g., Gson) have been removed.
 
-### 2) Dependency/version drift and hardcoded versions (Medium)
-- Version catalog exists, but some dependencies are hardcoded directly in `app/build.gradle.kts` (Navigation, Room, Firebase BOM, coroutines play-services).
-- Duplicate Gson entries exist in the version catalog (`gson` and `google-gson`).
+**Impact:** Consistent dependency governance and easier upgrades.
 
-**Impact:** Harder upgrades and inconsistent dependency governance.
+### 3) Error handling and logging (Improved)
+- ✅ **Fixed:** `Timber` has been added for structured logging.
+- ⚠️ **Pending:** broad exceptions in Firestore sync still need more granular handling and UI state surfacing.
 
-**Suggested fix:** Centralize all versions in `libs.versions.toml` and remove duplicates.
+**Impact:** Better developer observability, but user-facing error state still needs work.
 
-### 3) Error handling and logging are minimal (Medium)
-- Firestore sync catches broad exceptions and only prints stack trace.
-- No retry/backoff or surfaced UI state for sync failures.
-
-**Impact:** Failures are silent for users and hard to monitor.
-
-**Suggested fix:** Expose sync state/errors through ViewModel state, and add structured logging (e.g., Timber/Crashlytics).
-
-### 4) Data migration strategy is destructive (Medium)
-- Room builder uses `fallbackToDestructiveMigration()`.
+### 4) Data migration strategy (Pending)
+- ⚠️ **Issue:** Room builder still uses `fallbackToDestructiveMigration()`.
 
 **Impact:** Local data loss on schema changes.
 
 **Suggested fix:** Add explicit migrations before production release.
 
-### 5) Small code quality signals (Low)
-- There are unused imports and a placeholder repository file (`LessonRepository.kt` is effectively deleted content).
-- Some business dependencies (database/repositories) are instantiated inside composable graph instead of DI container.
+### 5) Code quality (Improved)
+- ✅ **Fixed:** Hilt is now used for dependency injection throughout the app.
+- ✅ **Fixed:** Object creation moved out of composables into the DI container.
+- ⚠️ **Pending:** `LessonRepository.kt` remains a placeholder (deleted content). Unused imports should be cleaned up.
 
-**Impact:** Technical debt and harder testability over time.
+**Impact:** Improved testability and maintainability.
 
-**Suggested fix:** Introduce Hilt/Koin (or manual DI composition root) and clean dead files/imports.
-
-## Prioritized next steps (1–2 sprints)
-1. Replace current login with secure auth flow (Firebase Auth + proper OAuth setup).
-2. Introduce dependency injection and move object creation out of composables.
-3. Normalize dependency versions through `libs.versions.toml` only.
-4. Replace destructive migrations with explicit Room migrations.
+## Prioritized next steps (Updated)
+1. Complete social login implementation (Facebook).
+2. Replace destructive migrations with explicit Room migrations.
+3. Improve sync error surfacing in UI state.
+4. Clean up dead files (`LessonRepository.kt`) and unused imports.
 5. Add unit tests for streak logic and repository sync mapping edge-cases.
 
 ## Validation note
-- Attempted to run unit tests with Gradle wrapper, but dependency download was blocked by proxy/network policy in this environment.
+- Project structure now aligns with modern Android best practices (Hilt, Version Catalog, Encrypted Storage).

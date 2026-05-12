@@ -6,6 +6,7 @@ import com.ilmezubaan.app.data.local.entities.ConceptEntity
 import com.ilmezubaan.app.data.model.Concept
 import com.ilmezubaan.app.data.model.LanguageMetadata
 import com.ilmezubaan.app.data.repository.ConceptRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -27,14 +28,12 @@ class ConceptViewModel @Inject constructor(private val repository: ConceptReposi
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            syncData()
-        }
+        syncData()
     }
 
-    fun syncData() {
-        viewModelScope.launch {
-            repository.syncConcepts()
+    fun syncData(force: Boolean = false) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.syncConcepts(force)
             repository.syncMetadata()
         }
     }

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -48,6 +49,10 @@ fun HomeScreen(
     val nativeLanguage by languageViewModel.nativeLanguage.collectAsState()
     val userStats by homeViewModel.userStats.collectAsState()
     val featuredWord by homeViewModel.featuredWord.collectAsState()
+
+    LaunchedEffect(Unit) {
+        homeViewModel.refreshHomeData()
+    }
 
     Scaffold(
         bottomBar = {

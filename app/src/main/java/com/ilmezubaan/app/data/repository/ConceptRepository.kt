@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -50,88 +52,91 @@ class ConceptRepository(
 
     private var lastSyncTime = 0L
     private val SYNC_INTERVAL = 3600_000L // 1 hour
+    private val syncMutex = Mutex()
 
     suspend fun syncConcepts(force: Boolean = false) = withContext(Dispatchers.IO) {
-        if (!force && System.currentTimeMillis() - lastSyncTime < SYNC_INTERVAL) {
-            Log.d("FirebaseSync", "Sync skipped: recently updated")
-            return@withContext
-        }
-        try {
-            Log.d("FirebaseSync", "Starting Sync... User: ${auth.currentUser?.uid}")
-            signInAnonymouslyIfNeeded()
-
-            val languagesSnapshot = dbRef.child("Languages").get().await()
-            val snapshot = if (languagesSnapshot.exists()) languagesSnapshot else dbRef.get().await()
-
-            if (!snapshot.exists()) {
-                Log.e("FirebaseSync", "Database is empty!")
+        syncMutex.withLock {
+            if (!force && System.currentTimeMillis() - lastSyncTime < SYNC_INTERVAL) {
+                Log.d("FirebaseSync", "Sync skipped: recently updated")
                 return@withContext
             }
+            try {
+                Log.d("FirebaseSync", "Starting Sync... User: ${auth.currentUser?.uid}")
+                signInAnonymouslyIfNeeded()
 
-            val allRemoteConcepts = mutableListOf<ConceptEntity>()
+                val languagesSnapshot = dbRef.child("Languages").get().await()
+                val snapshot = if (languagesSnapshot.exists()) languagesSnapshot else dbRef.get().await()
 
-            snapshot.children.forEach { langFolder ->
-                val langName = langFolder.key?.lowercase() ?: return@forEach
-                if (langName == "language_metadata" || langName == "users" || langName == "languages") return@forEach
+                if (!snapshot.exists()) {
+                    Log.e("FirebaseSync", "Database is empty!")
+                    return@withContext
+                }
 
-                langFolder.children.forEach { conceptSnapshot ->
-                    val data = conceptSnapshot
-                    val english = data.firstString("english_meaning", "englishMeaning", "english", "meaning")
-                    
-                    if (english.isNotEmpty()) {
-                        val id = "${langName}_${data.key}"
-                        val category = data.firstString("category").ifBlank { "General" }
-                        val level = data.firstString("level", "difficultyLevel").ifBlank { "Basic" }
-                        val context = data.firstString("context").ifBlank { null }
-                        val audioUrl = data.firstString("audio_url", "audioUrl")
-                        
-                        val example = data.firstString("${langName}_example", "example")
-                        
-                        val exampleMeaning = data.firstString("${langName}_example_meaning", "example_meaning", "exampleMeaning")
-                        
-                        val languages = mutableMapOf<String, LanguageDetail>()
-                        
-                        val nativeScript = data.firstString(
-                            "${langName}_shahmukhi",
-                            "${langName}_script",
-                            "urdu_meaning",
-                            "native_script",
-                            "script",
-                            "word"
-                        )
+                val allRemoteConcepts = mutableListOf<ConceptEntity>()
 
-                        languages[langName] = LanguageDetail(
-                            script = nativeScript,
-                            roman = data.firstString("roman", "pronunciation", "transliteration"),
-                            audioUrl = audioUrl,
-                            example = example,
-                            exampleMeaning = exampleMeaning
-                        )
+                snapshot.children.forEach { langFolder ->
+                    val langName = langFolder.key?.lowercase() ?: return@forEach
+                    if (langName == "language_metadata" || langName == "users" || langName == "languages") return@forEach
 
-                        allRemoteConcepts.add(
-                            ConceptEntity(
-                                conceptId = id,
-                                englishMeaning = english,
-                                category = category,
-                                difficultyLevel = level,
-                                languagesJson = gson.toJson(languages),
-                                context = context,
-                                updatedAt = System.currentTimeMillis()
+                    langFolder.children.forEach { conceptSnapshot ->
+                        val data = conceptSnapshot
+                        val english = data.firstString("english_meaning", "englishMeaning", "english", "meaning")
+
+                        if (english.isNotEmpty()) {
+                            val id = "${langName}_${data.key}"
+                            val category = data.firstString("category").ifBlank { "General" }
+                            val level = data.firstString("level", "difficultyLevel").ifBlank { "Basic" }
+                            val context = data.firstString("context").ifBlank { null }
+                            val audioUrl = data.firstString("audio_url", "audioUrl")
+
+                            val example = data.firstString("${langName}_example", "example")
+
+                            val exampleMeaning = data.firstString("${langName}_example_meaning", "example_meaning", "exampleMeaning")
+
+                            val languages = mutableMapOf<String, LanguageDetail>()
+
+                            val nativeScript = data.firstString(
+                                "${langName}_shahmukhi",
+                                "${langName}_script",
+                                "urdu_meaning",
+                                "native_script",
+                                "script",
+                                "word"
                             )
-                        )
+
+                            languages[langName] = LanguageDetail(
+                                script = nativeScript,
+                                roman = data.firstString("roman", "pronunciation", "transliteration"),
+                                audioUrl = audioUrl,
+                                example = example,
+                                exampleMeaning = exampleMeaning
+                            )
+
+                            allRemoteConcepts.add(
+                                ConceptEntity(
+                                    conceptId = id,
+                                    englishMeaning = english,
+                                    category = category,
+                                    difficultyLevel = level,
+                                    languagesJson = gson.toJson(languages),
+                                    context = context,
+                                    updatedAt = System.currentTimeMillis()
+                                )
+                            )
+                        }
                     }
                 }
+
+                if (allRemoteConcepts.isNotEmpty()) {
+                    conceptDao.insertConcepts(allRemoteConcepts)
+                    lastSyncTime = System.currentTimeMillis()
+                    Log.d("FirebaseSync", "Successfully synced ${allRemoteConcepts.size} concepts.")
+                } else {
+                    Log.e("FirebaseSync", "Sync finished with zero concepts. Check Firebase field names and read rules.")
+                }
+            } catch (e: Exception) {
+                Log.e("FirebaseSync", "Sync failed: ${e.message}", e)
             }
-            
-            if (allRemoteConcepts.isNotEmpty()) {
-                conceptDao.insertConcepts(allRemoteConcepts)
-                lastSyncTime = System.currentTimeMillis()
-                Log.d("FirebaseSync", "Successfully synced ${allRemoteConcepts.size} concepts.")
-            } else {
-                Log.e("FirebaseSync", "Sync finished with zero concepts. Check Firebase field names and read rules.")
-            }
-        } catch (e: Exception) {
-            Log.e("FirebaseSync", "Sync failed: ${e.message}", e)
         }
     }
 

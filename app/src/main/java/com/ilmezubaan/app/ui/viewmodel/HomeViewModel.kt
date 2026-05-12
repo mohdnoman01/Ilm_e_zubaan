@@ -6,6 +6,7 @@ import com.ilmezubaan.app.data.local.entities.UserStats
 import com.ilmezubaan.app.data.model.Concept
 import com.ilmezubaan.app.data.repository.ConceptRepository
 import com.ilmezubaan.app.data.repository.UserStatsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -28,49 +29,40 @@ class HomeViewModel @Inject constructor(
             initialValue = UserStats()
         )
 
-    private val _featuredWord = MutableStateFlow<Concept?>(null)
-    val featuredWord: StateFlow<Concept?> = _featuredWord.asStateFlow()
+    val featuredWord: StateFlow<Concept?> = combine(conceptRepository.allConcepts, userStats) { concepts, stats ->
+        selectFeaturedWord(concepts, stats.selectedLanguageName)
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
 
-    init {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+    fun refreshHomeData(force: Boolean = false) {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.checkAndUpdateStreak()
-            conceptRepository.syncConcepts()
-            observeFeaturedWord()
+            conceptRepository.syncConcepts(force)
         }
     }
 
-    private fun observeFeaturedWord() {
-        viewModelScope.launch {
-            combine(conceptRepository.allConcepts, userStats) { concepts, stats ->
-                Pair(concepts, stats.selectedLanguageName)
-            }
-            .flowOn(kotlinx.coroutines.Dispatchers.Default)
-            .collectLatest { (concepts, languageName) ->
-                if (concepts.isNotEmpty() && !languageName.isNullOrEmpty()) {
-                    // Filter concepts that have the selected language available
-                    val filtered = concepts.filter { concept ->
-                        concept.languages.keys.any { it.equals(languageName, ignoreCase = true) }
-                    }
+    private fun selectFeaturedWord(concepts: List<Concept>, languageName: String?): Concept? {
+        if (concepts.isEmpty() || languageName.isNullOrEmpty()) return null
 
-                    if (filtered.isNotEmpty()) {
-                        // Use seed based on today's date for daily word consistency
-                        val today = Calendar.getInstance().apply {
-                            set(Calendar.HOUR_OF_DAY, 0)
-                            set(Calendar.MINUTE, 0)
-                            set(Calendar.SECOND, 0)
-                            set(Calendar.MILLISECOND, 0)
-                        }.timeInMillis
-                        
-                        val random = Random(today)
-                        _featuredWord.value = filtered[random.nextInt(filtered.size)]
-                    } else {
-                        _featuredWord.value = null
-                    }
-                } else {
-                    _featuredWord.value = null
-                }
-            }
+        val filtered = concepts.filter { concept ->
+            concept.languages.keys.any { it.equals(languageName, ignoreCase = true) }
         }
+
+        if (filtered.isEmpty()) return null
+
+        val today = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        return filtered[Random(today).nextInt(filtered.size)]
     }
 
     fun getGreeting(): String {

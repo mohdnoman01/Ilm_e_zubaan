@@ -146,7 +146,7 @@ fun VocabularyScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { conceptViewModel.syncData() }) {
+                    IconButton(onClick = { conceptViewModel.syncData(force = true) }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = NeonCyan)
                     }
                     Box(

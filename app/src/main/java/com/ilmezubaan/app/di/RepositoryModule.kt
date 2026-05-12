@@ -34,7 +34,7 @@ object RepositoryModule {
     fun provideGeminiWordRepository(
         apiService: GeminiApiService,
         gson: Gson,
-        wordInsightDao: WordInsightDao
+        wordInsightDao: WordInsightDao,
     ): GeminiWordRepository {
         return GeminiWordRepository(apiService, gson, wordInsightDao)
     }
