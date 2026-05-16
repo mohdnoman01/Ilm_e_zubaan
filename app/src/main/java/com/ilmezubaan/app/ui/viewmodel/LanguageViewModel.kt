@@ -37,6 +37,7 @@ class LanguageViewModel @Inject constructor(private val repository: UserStatsRep
     val nativeLanguage: StateFlow<Language?> = _nativeLanguage.asStateFlow()
 
     init {
+        android.util.Log.d("LanguageViewModel", "init started")
         viewModelScope.launch {
             repository.userStats.collect { stats ->
                 stats?.selectedLanguageName?.let { savedName ->

@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -30,8 +31,8 @@ fun AppNavGraph() {
         composable<Route.Login> {
             val userStats by homeViewModel.userStats.collectAsState()
             
-            LoginScreen(
-                onLoginSuccess = { isNewUser ->
+            val onLoginSuccess: (Boolean) -> Unit = remember(navController, userStats) {
+                { isNewUser: Boolean ->
                     if (isNewUser) {
                         navController.navigate(Route.LanguageNative) {
                             popUpTo(Route.Login) { inclusive = true }
@@ -45,7 +46,11 @@ fun AppNavGraph() {
                             popUpTo(Route.Login) { inclusive = true }
                         }
                     }
-                },
+                }
+            }
+
+            LoginScreen(
+                onLoginSuccess = onLoginSuccess,
                 homeViewModel = homeViewModel
             )
         }
@@ -69,6 +74,9 @@ fun AppNavGraph() {
                 },
                 onAIClick = {
                     navController.navigate(Route.AI)
+                },
+                onExploreClick = {
+                    navController.navigate(Route.Explore)
                 },
                 languageViewModel = languageViewModel,
                 homeViewModel = homeViewModel
@@ -169,6 +177,13 @@ fun AppNavGraph() {
                 learningLanguage = selectedLanguage.name,
                 nativeLanguage = nativeLanguage?.name ?: "Urdu",
                 viewModel = wordInsightViewModel
+            )
+        }
+
+        composable<Route.Explore> {
+            ExploreScreen(
+                onBack = { navController.popBackStack() },
+                viewModel = languageViewModel
             )
         }
 

@@ -41,8 +41,11 @@ class HomeViewModel @Inject constructor(
 
     fun refreshHomeData(force: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
+            android.util.Log.d("HomeViewModel", "refreshHomeData started")
             repository.checkAndUpdateStreak()
+            android.util.Log.d("HomeViewModel", "streak updated")
             conceptRepository.syncConcepts(force)
+            android.util.Log.d("HomeViewModel", "concepts synced")
         }
     }
 

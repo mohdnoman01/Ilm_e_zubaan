@@ -23,9 +23,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.ilmezubaan.app.data.local.entities.UserStats
 import com.ilmezubaan.app.data.model.Concept
 import com.ilmezubaan.app.data.model.Lesson
@@ -42,6 +44,7 @@ fun HomeScreen(
     onLiteracyClick: () -> Unit,
     onVocabularyClick: () -> Unit,
     onAIClick: () -> Unit,
+    onExploreClick: () -> Unit,
     languageViewModel: LanguageViewModel,
     homeViewModel: HomeViewModel
 ) {
@@ -56,7 +59,11 @@ fun HomeScreen(
 
     Scaffold(
         bottomBar = {
-            BottomNavigationBar(onProfileClick = onProfileClick, onAIClick = onAIClick)
+            BottomNavigationBar(
+                onProfileClick = onProfileClick, 
+                onAIClick = onAIClick,
+                onExploreClick = onExploreClick
+            )
         },
         containerColor = DarkBg
     ) { padding ->
@@ -67,9 +74,47 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // Header Section
-            HomeHeader(userName = userStats.userName, onProfileClick = onProfileClick)
+            HomeHeader(
+                userName = userStats.userName, 
+                avatar = userStats.avatarEmoji,
+                onProfileClick = onProfileClick
+            )
 
             Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                // Streak & Points Summary (From reference image)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    SummaryCard(
+                        value = "${userStats.currentStreak}",
+                        label = "Days Streak",
+                        icon = Icons.Default.Whatshot,
+                        color = NeonOrange,
+                        modifier = Modifier.weight(1f)
+                    )
+                    SummaryCard(
+                        value = "${userStats.xpPoints}",
+                        label = "Total XP",
+                        icon = Icons.Default.Stars,
+                        color = NeonCyan,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Featured Lesson (Large Image Card)
+                FeaturedLessonCard(
+                    title = "Urdu Verbs Mastery",
+                    subtitle = "Foundations of Syntax",
+                    image = "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?q=80&w=400&auto=format&fit=crop",
+                    progress = 0.65f,
+                    onClick = { onLiteracyClick() }
+                )
+
+                Spacer(Modifier.height(28.dp))
+
                 // Learning Status Card
                 LearningStatusCard(
                     native = nativeLanguage?.name ?: "Unknown",
@@ -87,22 +132,12 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(28.dp))
 
-                // Lessons Shortcuts
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Mastery",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = TextWhite,
-                        fontWeight = FontWeight.Bold
-                    )
-                    TextButton(onClick = { onLessonClick(selectedLanguage.name) }) {
-                        Text("View All", color = NeonCyan, fontSize = 14.sp)
-                    }
-                }
+                Text(
+                    "Mastery Path",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = TextWhite,
+                    fontWeight = FontWeight.Bold
+                )
                 
                 Spacer(Modifier.height(16.dp))
 
@@ -119,7 +154,86 @@ fun HomeScreen(
 }
 
 @Composable
-fun HomeHeader(userName: String, onProfileClick: () -> Unit) {
+fun SummaryCard(value: String, label: String, icon: ImageVector, color: Color, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = DarkSurface
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(color.copy(0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(value, color = TextWhite, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(label, color = TextGrey, fontSize = 10.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun FeaturedLessonCard(title: String, subtitle: String, image: String, progress: Float, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(180.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = DarkSurface
+    ) {
+        Box {
+            AsyncImage(
+                model = image,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.5f
+            )
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                Surface(
+                    color = NeonCyan.copy(0.2f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        "CONTINUE LEARNING",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        color = NeonCyan,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(title, color = TextWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(subtitle, color = TextWhite.copy(0.7f), fontSize = 12.sp)
+                
+                Spacer(Modifier.height(12.dp))
+                
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+                    color = NeonCyan,
+                    trackColor = Color.White.copy(0.1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeHeader(userName: String, avatar: String, onProfileClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,13 +256,14 @@ fun HomeHeader(userName: String, onProfileClick: () -> Unit) {
         }
         
         Surface(
-            modifier = Modifier.size(44.dp),
+            modifier = Modifier.size(48.dp),
             shape = CircleShape,
             color = DarkSurface,
+            border = androidx.compose.foundation.BorderStroke(2.dp, NeonPurple),
             onClick = onProfileClick
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Person, contentDescription = "Profile", tint = NeonPurple)
+                Text(avatar, fontSize = 24.sp)
             }
         }
     }
@@ -379,7 +494,7 @@ fun NavCard(title: String, subtitle: String, icon: ImageVector, color: Color, on
 }
 
 @Composable
-fun BottomNavigationBar(onProfileClick: () -> Unit, onAIClick: () -> Unit) {
+fun BottomNavigationBar(onProfileClick: () -> Unit, onAIClick: () -> Unit, onExploreClick: () -> Unit) {
     Surface(
         color = DarkBg,
         modifier = Modifier.fillMaxWidth()
@@ -394,6 +509,7 @@ fun BottomNavigationBar(onProfileClick: () -> Unit, onAIClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             BottomNavItem(Icons.Default.Home, "Home", true)
+            BottomNavItem(Icons.Default.Explore, "Explore", false, onClick = onExploreClick)
             BottomNavItem(Icons.Default.AutoAwesome, "AI", false, onClick = onAIClick)
             BottomNavItem(Icons.Default.Person, "Profile", false, onClick = onProfileClick)
         }

@@ -26,7 +26,6 @@ object TtsLocaleRegistry {
         "pashto" to "ps",
         "balochi" to "bal",
         "saraiki" to "skr",
-        "seraiki" to "skr"
     )
 
     fun codeFor(languageNameOrCode: String?): String {

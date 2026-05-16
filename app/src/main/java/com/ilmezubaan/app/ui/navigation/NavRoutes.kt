@@ -39,6 +39,9 @@ sealed interface Route {
     data object AI : Route
     
     @Serializable
+    data object Explore : Route
+    
+    @Serializable
     data object PrivacySettings : Route
 }
 
@@ -54,5 +57,6 @@ object NavRoutes {
     const val LITERACY = "literacy"
     const val VOCABULARY = "vocabulary"
     const val AI = "ai"
+    const val EXPLORE = "explore"
     const val PRIVACY_SETTINGS = "privacy_settings"
 }

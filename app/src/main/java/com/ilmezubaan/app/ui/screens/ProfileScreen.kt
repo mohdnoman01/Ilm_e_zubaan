@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -228,6 +229,12 @@ fun ProfileScreen(
 
             Spacer(Modifier.height(32.dp))
 
+            // Learning Progress Chart (From reference image)
+            SectionTitle("Learning Progress")
+            LearningProgressChart()
+
+            Spacer(Modifier.height(32.dp))
+
             // Sections
             SectionTitle("Learning")
             ProfileOptionItem("My Courses", Icons.Default.Book, NeonCyan) {}
@@ -248,6 +255,42 @@ fun ProfileScreen(
             }
             
             Spacer(Modifier.height(32.dp))
+        }
+    }
+}
+
+@Composable
+fun LearningProgressChart() {
+    val progressData = listOf(0.4f, 0.7f, 0.5f, 0.9f, 0.6f, 0.8f, 0.4f)
+    val days = listOf("M", "T", "W", "T", "F", "S", "S")
+    
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(160.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = DarkSurface
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp).fillMaxSize(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            progressData.forEachIndexed { index, value ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .width(12.dp)
+                            .fillMaxHeight(value)
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(NeonCyan, NeonPurple)
+                                ),
+                                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                            )
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(days[index], color = TextGrey, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

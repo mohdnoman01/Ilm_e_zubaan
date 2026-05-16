@@ -34,6 +34,8 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -168,6 +170,39 @@ fun VocabularyScreen(
                 .padding(padding)
         ) {
             SearchBar()
+            
+            // Streak Header (From reference image)
+            Surface(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp).fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = DarkSurface
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.size(40.dp).background(NeonOrange.copy(0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Whatshot, contentDescription = null, tint = NeonOrange, modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("Daily Goal", color = TextWhite, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("12 Days Streak", color = TextGrey, fontSize = 10.sp)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    CircularProgressIndicator(
+                        progress = { 0.75f },
+                        modifier = Modifier.size(24.dp),
+                        color = NeonOrange,
+                        strokeWidth = 3.dp,
+                        trackColor = Color.White.copy(0.1f)
+                    )
+                }
+            }
+
             CategoryRow(categories, selectedCategory) { selectedCategory = it }
 
             LazyColumn(

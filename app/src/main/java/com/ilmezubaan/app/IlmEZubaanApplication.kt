@@ -21,17 +21,24 @@ class IlmEZubaanApplication : Application() {
             Timber.plant(Timber.DebugTree())
         }
 
-        FirebaseApp.initializeApp(this)
-        val firebaseAppCheck = Firebase.appCheck
-        
-        if (BuildConfig.DEBUG) {
-            firebaseAppCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance()
-            )
-        } else {
-            firebaseAppCheck.installAppCheckProviderFactory(
-                PlayIntegrityAppCheckProviderFactory.getInstance()
-            )
+        try {
+            FirebaseApp.initializeApp(this)
+            // Temporarily disabling App Check to investigate crash loop
+            /*
+            val firebaseAppCheck = Firebase.appCheck
+
+            if (BuildConfig.DEBUG) {
+                firebaseAppCheck.installAppCheckProviderFactory(
+                    DebugAppCheckProviderFactory.getInstance()
+                )
+            } else {
+                firebaseAppCheck.installAppCheckProviderFactory(
+                    PlayIntegrityAppCheckProviderFactory.getInstance()
+                )
+            }
+            */
+        } catch (e: Exception) {
+            Timber.e(e, "Firebase initialization failed")
         }
     }
 }

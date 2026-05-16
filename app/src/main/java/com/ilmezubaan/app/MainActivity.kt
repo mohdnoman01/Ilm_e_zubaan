@@ -17,8 +17,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        android.util.Log.d("MainActivity", "onCreate started")
         enableEdgeToEdge()
         setContent {
+            android.util.Log.d("MainActivity", "setContent started")
             IlmEZubaanTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
