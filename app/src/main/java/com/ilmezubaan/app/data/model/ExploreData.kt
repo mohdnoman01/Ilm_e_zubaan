@@ -7,6 +7,10 @@ data class ExploreData(
     val heroImage: String,
     val speakers: String,
     val languageFamily: String,
+    val introVideoUrl: String? = null,
+    val historyVideoUrl: String? = null,
+    val cultureVideoUrl: String? = null,
+    val regionVideoUrl: String? = null,
     val history: HistoryData,
     val culture: CultureData,
     val region: RegionData,
@@ -45,36 +49,42 @@ object ExploreDataProvider {
         "Punjabi" to ExploreData(
             languageName = "Punjabi",
             title = "The Spirit of the Five Rivers",
-            subtitle = "Journey through the vibrant plains and the soulful Sufi traditions of the Punjab.",
+            subtitle = "Journey through the ancient roots and soulful Sufi traditions of the Punjab.",
             heroImage = "https://images.unsplash.com/photo-1590071210543-98282361665a?q=80&w=600&auto=format&fit=crop",
-            speakers = "100 Million+",
+            speakers = "80 Million+",
             languageFamily = "Indo-Aryan",
+            introVideoUrl = "punjabi_rescue_video",
+            historyVideoUrl = null,
+            cultureVideoUrl = null,
+            regionVideoUrl = null,
             history = HistoryData(
-                mainHeading = "Ancient Roots & Sufi Soul",
-                description = "Punjabi evolved from Sanskrit through Shauraseni Prakrit. It became a literary giant during the 12th century with Baba Farid, followed by the legendary Sufi era.",
+                mainHeading = "Origin & Evolution",
+                description = "Punjabi is an ancient language from the Punjab region of South Asia. The Shahmukhi script, based on the Arabic and Persian alphabets, was created by Muslim scholars and Sufi poets who wanted to write the Punjabi language using letters they already knew.",
                 keyPoints = listOf(
-                    InfoCard("Sufi Poetry", "The golden era defined by Bulleh Shah, Waris Shah, and Sultan Bahu."),
-                    InfoCard("Indus Civilization", "Home to Harappa, one of the oldest urban centers in human history.")
+                    InfoCard("Shahmukhi Script", "Literally meaning 'from the King's mouth', it's written from right to left, just like Arabic and Urdu."),
+                    InfoCard("The Most Spoken", "Even though Urdu is the national language of Pakistan, Punjabi is the most spoken language in the country."),
+                    InfoCard("Unique Sounds", "The script has a few special letters added to it to capture unique Punjabi sounds.")
                 ),
                 timeline = listOf(
-                    InfoCard("12th Century", "Baba Farid Ganjshakar writes the first recorded Punjabi poetry."),
-                    InfoCard("1766", "Waris Shah completes the epic 'Heer Ranjha'."),
-                    InfoCard("1947", "The partition of Punjab creates a diaspora spread across the globe.")
+                    InfoCard("12th Century", "Gained deep roots through the poetry of famous Sufi saints like Baba Farid."),
+                    InfoCard("Mughal Empire", "The Shahmukhi script became widely used during this period."),
+                    InfoCard("1947", "Shahmukhi became the standard way to write Punjabi in Pakistan after the partition.")
                 )
             ),
             culture = CultureData(
-                mainHeading = "Bhangra & Phulkari",
-                description = "Punjabi culture is synonymous with hospitality, lively music, and rich agricultural traditions.",
+                mainHeading = "Heritage & Traditions",
+                description = "Punjabi culture is the heart of the region, tied to a lifestyle of farming, warm hospitality, and rich food. It's famous for its lively folk music, traditional dances like Bhangra, and spiritual Qawwali music.",
                 images = listOf(
-                    "https://images.unsplash.com/photo-1566908829550-e6551b00979b?q=80&w=400&auto=format&fit=crop",
-                    "https://images.unsplash.com/photo-1583089892943-e02e5b017b6a?q=80&w=400&auto=format&fit=crop"
+                    "https://images.unsplash.com/photo-1599420186946-7b6fb4e297f0?q=80&w=400&auto=format&fit=crop",
+                    "https://images.unsplash.com/photo-1606491956689-2ea866880c84?q=80&w=400&auto=format&fit=crop",
+                    "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=400&auto=format&fit=crop"
                 ),
                 folklore = InfoCard("Heer Ranjha", "The tragic epic of love that defines the romantic folklore of the Punjab."),
                 festivals = listOf("Besakhi", "Mela Chiraghan", "Basant")
             ),
             region = RegionData(
-                mainHeading = "The Heartland",
-                description = "Punjab is the most populous province, characterized by fertile alluvial plains fed by the Indus tributaries.",
+                mainHeading = "Usage & Reach",
+                description = "Today, Shahmukhi Punjabi is mainly used in the Punjab province of Pakistan. While Urdu and English are often used in schools and government, Punjabi is the language of daily life, family, local movies, and popular music.",
                 majorCities = listOf("Lahore", "Faisalabad", "Multan", "Gujranwala"),
                 dialects = listOf("Majhi (Standard)", "Pothohari", "Doabi", "Jhangvi")
             ),
@@ -90,6 +100,10 @@ object ExploreDataProvider {
             heroImage = "https://images.unsplash.com/photo-1623851722883-8a30141b714f?q=80&w=600&auto=format&fit=crop",
             speakers = "30 Million+",
             languageFamily = "Indo-Aryan",
+            introVideoUrl = "sindhi_cultural_day",
+            historyVideoUrl = null,
+            cultureVideoUrl = null,
+            regionVideoUrl = null,
             history = HistoryData(
                 mainHeading = "Ancient Indus Legacy",
                 description = "Sindhi is one of the few languages that has preserved many ancient Prakrit features. It was the first language in which the Quran was translated in the 9th century.",
@@ -131,6 +145,10 @@ object ExploreDataProvider {
             heroImage = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600&auto=format&fit=crop",
             speakers = "25 Million+ (in Pakistan)",
             languageFamily = "East Iranian",
+            introVideoUrl = "pashto_intro",
+            historyVideoUrl = null,
+            cultureVideoUrl = null,
+            regionVideoUrl = null,
             history = HistoryData(
                 mainHeading = "The Land of Honor",
                 description = "Pashto literature took a formal shape in the 16th century with Bayazid Roshan, but reached its zenith with the warrior-poet Khushal Khan Khattak.",
@@ -172,6 +190,10 @@ object ExploreDataProvider {
             heroImage = "https://images.unsplash.com/photo-1506461883276-594a12b11cf3?q=80&w=600&auto=format&fit=crop",
             speakers = "7 Million+",
             languageFamily = "Northwestern Iranian",
+            introVideoUrl = "balochi_intro",
+            historyVideoUrl = null,
+            cultureVideoUrl = null,
+            regionVideoUrl = null,
             history = HistoryData(
                 mainHeading = "Ancient Origins & Migrations",
                 description = "The Baloch people migrated from the Iranian plateau. Their language is closer to Kurdish and Middle Persian than to Indo-Aryan tongues.",
@@ -213,6 +235,10 @@ object ExploreDataProvider {
             heroImage = "https://images.unsplash.com/photo-1526481280693-3bfa75ac88b1?q=80&w=600&auto=format&fit=crop",
             speakers = "20 Million+",
             languageFamily = "Indo-Aryan",
+            introVideoUrl = "saraiki_language_case_study",
+            historyVideoUrl = null,
+            cultureVideoUrl = null,
+            regionVideoUrl = null,
             history = HistoryData(
                 mainHeading = "The Land of Saints",
                 description = "Saraiki is known for its extreme sweetness and musicality. It is the language of the 'Rohi' (Cholistan desert) and the ancient city of Multan.",
@@ -254,6 +280,10 @@ object ExploreDataProvider {
             heroImage = "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=600&auto=format&fit=crop",
             speakers = "100 Million+ (Globally)",
             languageFamily = "Indo-Aryan",
+            introVideoUrl = "urdu_intro",
+            historyVideoUrl = null,
+            cultureVideoUrl = null,
+            regionVideoUrl = null,
             history = HistoryData(
                 mainHeading = "Lashkari Zaban",
                 description = "Urdu emerged from the interactions of Persian, Arabic, and Turkic speakers with the local Khari Boli. It became the language of high culture and independence.",
@@ -290,3 +320,5 @@ object ExploreDataProvider {
         )
     )
 }
+
+

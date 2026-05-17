@@ -27,6 +27,7 @@ val geminiApiKey2 =
         ?: localProperties.getProperty("GEMINI_API_KEY_2")?.takeIf { it.isNotBlank() }
         ?: ""
 
+
 android {
     namespace = "com.ilmezubaan.app"
     compileSdk = libs.versions.compileSdk.get().toInt()
@@ -59,17 +60,18 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
     buildFeatures {
         compose = true
         buildConfig = true
     }
 }
+
 
 dependencies {
     implementation(libs.androidx.core.ktx)

@@ -55,21 +55,35 @@ fun LoginScreen(
     onLoginSuccess: (isNewUser: Boolean) -> Unit,
     homeViewModel: HomeViewModel
 ) {
-    android.util.Log.d("LoginScreen", "LoginScreen composed")
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    val coroutineScope = rememberCoroutineScope()
-    val credentialManager = remember { CredentialManager.create(context) }
+    // val coroutineScope = rememberCoroutineScope()
+    
+    /*
+    val credentialManager = remember { 
+        try {
+            CredentialManager.create(context)
+        } catch (e: Exception) {
+            android.util.Log.e("LoginScreen", "Failed to create CredentialManager", e)
+            null
+        }
+    }
+    */
     
     var encryptedPrefs by remember { mutableStateOf<android.content.SharedPreferences?>(null) }
     var isLoadingSecurity by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            val prefs = SecurityUtils.getEncryptedPrefs(context)
-            encryptedPrefs = prefs
-            isLoadingSecurity = false
+        val prefs = withContext(Dispatchers.IO) {
+            try {
+                SecurityUtils.getEncryptedPrefs(context)
+            } catch (e: Exception) {
+                Timber.e(e, "Security init failed")
+                null
+            }
         }
+        encryptedPrefs = prefs
+        isLoadingSecurity = false
     }
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -323,6 +337,7 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
                 
+                /*
                 Text("Join the Community", fontSize = 14.sp, color = com.ilmezubaan.app.ui.theme.TextGrey)
                 Spacer(modifier = Modifier.height(16.dp))
                 
@@ -350,7 +365,7 @@ fun LoginScreen(
                                         .build()
 
                                     val result = withTimeoutOrNull(10000) {
-                                        credentialManager.getCredential(context, request)
+                                        credentialManager?.getCredential(context, request)
                                     }
 
                                     if (result != null) {
@@ -366,6 +381,7 @@ fun LoginScreen(
                         }
                     )
                 }
+                */
             }
         }
     }

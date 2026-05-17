@@ -1,13 +1,9 @@
 package com.ilmezubaan.app
 
 import android.app.Application
-import com.google.firebase.Firebase
-import com.google.firebase.FirebaseApp
-import com.google.firebase.appcheck.appCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
-import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.ilmezubaan.app.data.local.AppDatabase
 import dagger.hilt.android.HiltAndroidApp
+import kotlin.system.exitProcess
 import timber.log.Timber
 
 @HiltAndroidApp
@@ -16,29 +12,19 @@ class IlmEZubaanApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        
+
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
 
-        try {
-            FirebaseApp.initializeApp(this)
-            // Temporarily disabling App Check to investigate crash loop
-            /*
-            val firebaseAppCheck = Firebase.appCheck
+        installCrashLogger()
+    }
 
-            if (BuildConfig.DEBUG) {
-                firebaseAppCheck.installAppCheckProviderFactory(
-                    DebugAppCheckProviderFactory.getInstance()
-                )
-            } else {
-                firebaseAppCheck.installAppCheckProviderFactory(
-                    PlayIntegrityAppCheckProviderFactory.getInstance()
-                )
-            }
-            */
-        } catch (e: Exception) {
-            Timber.e(e, "Firebase initialization failed")
+    private fun installCrashLogger() {
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            Timber.e(throwable, "Uncaught exception in thread ${thread.name}")
+            previousHandler?.uncaughtException(thread, throwable) ?: exitProcess(10)
         }
     }
 }

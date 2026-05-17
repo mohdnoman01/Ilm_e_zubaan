@@ -19,8 +19,7 @@ import com.ilmezubaan.app.ui.viewmodel.WordInsightViewModel
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
-    
-    // Scoped to the entire activity to prevent redundant initialization
+
     val homeViewModel: HomeViewModel = hiltViewModel()
     val languageViewModel: LanguageViewModel = hiltViewModel()
 
@@ -183,6 +182,9 @@ fun AppNavGraph() {
         composable<Route.Explore> {
             ExploreScreen(
                 onBack = { navController.popBackStack() },
+                onWatchVideo = { title, url ->
+                    navController.navigate(Route.Player(title, "VIDEO", url))
+                },
                 viewModel = languageViewModel
             )
         }

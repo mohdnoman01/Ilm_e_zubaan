@@ -3,30 +3,67 @@ package com.ilmezubaan.app.utils
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Base64
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import java.io.IOException
 import java.security.MessageDigest
+import java.security.GeneralSecurityException
 import java.security.SecureRandom
 
 object SecurityUtils {
-    fun getEncryptedPrefs(context: Context): SharedPreferences? {
+    private const val TAG = "SecurityUtils"
+    private const val ENCRYPTED_PREFS_NAME = "auth_prefs_encrypted"
+    private const val FALLBACK_PREFS_NAME = "auth_prefs_v2"
+
+    fun getEncryptedPrefs(context: Context): SharedPreferences {
         return try {
             val masterKey = MasterKey.Builder(context)
                 .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                 .build()
 
-            EncryptedSharedPreferences.create(
+            val encryptedPrefs = EncryptedSharedPreferences.create(
                 context,
-                "auth_prefs",
+                ENCRYPTED_PREFS_NAME,
                 masterKey,
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // Fallback to regular SharedPreferences if encryption fails (e.g. Keystore issues)
-            context.getSharedPreferences("auth_prefs_fallback", Context.MODE_PRIVATE)
+            migrateLegacyPrefsIfNeeded(
+                legacyPrefs = context.getSharedPreferences(FALLBACK_PREFS_NAME, Context.MODE_PRIVATE),
+                encryptedPrefs = encryptedPrefs
+            )
+            encryptedPrefs
+        } catch (e: GeneralSecurityException) {
+            Log.w(TAG, "Encrypted preferences unavailable; using device-local fallback.", e)
+            context.getSharedPreferences(FALLBACK_PREFS_NAME, Context.MODE_PRIVATE)
+        } catch (e: IOException) {
+            Log.w(TAG, "Encrypted preferences unavailable; using device-local fallback.", e)
+            context.getSharedPreferences(FALLBACK_PREFS_NAME, Context.MODE_PRIVATE)
         }
+    }
+
+    private fun migrateLegacyPrefsIfNeeded(
+        legacyPrefs: SharedPreferences,
+        encryptedPrefs: SharedPreferences
+    ) {
+        if (legacyPrefs.all.isEmpty() || encryptedPrefs.all.isNotEmpty()) return
+
+        val editor = encryptedPrefs.edit()
+        legacyPrefs.all.forEach { (key, value) ->
+            when (value) {
+                is String -> editor.putString(key, value)
+                is Boolean -> editor.putBoolean(key, value)
+                is Int -> editor.putInt(key, value)
+                is Long -> editor.putLong(key, value)
+                is Float -> editor.putFloat(key, value)
+                is Set<*> -> {
+                    @Suppress("UNCHECKED_CAST")
+                    editor.putStringSet(key, value as Set<String>)
+                }
+            }
+        }
+        editor.apply()
     }
 
     fun hashPassword(password: String, salt: ByteArray = SecureRandom().generateSeed(16)): Pair<String, String> {

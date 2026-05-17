@@ -17,7 +17,9 @@ data class Concept(
 data class LanguageDetail(
     val script: String = "",
     val roman: String = "",
-    val audioUrl: String? = null,
+    val type: String = "AUDIO", // "AUDIO" or "VIDEO"
+    val mediaUrl: String? = null,
+    val audioUrl: String? = null, // Deprecated, use mediaUrl
     val example: String? = null,
-    val exampleMeaning: String? = "" // Changed to nullable or default empty to prevent parsing errors
+    val exampleMeaning: String? = ""
 )

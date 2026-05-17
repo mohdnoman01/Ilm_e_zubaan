@@ -14,11 +14,12 @@ import java.util.Random
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import javax.inject.Provider
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: UserStatsRepository,
-    private val conceptRepository: ConceptRepository
+    private val conceptRepositoryProvider: Provider<ConceptRepository>
 ) : ViewModel() {
 
     val userStats: StateFlow<UserStats> = repository.userStats
@@ -29,22 +30,24 @@ class HomeViewModel @Inject constructor(
             initialValue = UserStats()
         )
 
-    val featuredWord: StateFlow<Concept?> = combine(conceptRepository.allConcepts, userStats) { concepts, stats ->
-        selectFeaturedWord(concepts, stats.selectedLanguageName)
+    val featuredWord: StateFlow<Concept?> by lazy {
+        combine(conceptRepositoryProvider.get().allConcepts, userStats) { concepts, stats ->
+            selectFeaturedWord(concepts, stats.selectedLanguageName)
+        }
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
     }
-    .flowOn(Dispatchers.Default)
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = null
-    )
 
     fun refreshHomeData(force: Boolean = false) {
         viewModelScope.launch(Dispatchers.IO) {
             android.util.Log.d("HomeViewModel", "refreshHomeData started")
             repository.checkAndUpdateStreak()
             android.util.Log.d("HomeViewModel", "streak updated")
-            conceptRepository.syncConcepts(force)
+            conceptRepositoryProvider.get().syncConcepts(force)
             android.util.Log.d("HomeViewModel", "concepts synced")
         }
     }

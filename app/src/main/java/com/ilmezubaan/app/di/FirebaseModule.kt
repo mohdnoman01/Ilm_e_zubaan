@@ -1,10 +1,13 @@
 package com.ilmezubaan.app.di
 
+import android.content.Context
+import com.google.firebase.FirebaseApp
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.auth.FirebaseAuth
 import dagger.Module
 import dagger.Provides
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
@@ -15,14 +18,28 @@ object FirebaseModule {
 
     @Provides
     @Singleton
-    fun provideFirebaseDatabase(): FirebaseDatabase = 
-        FirebaseDatabase.getInstance("https://ilm-e-zubaan-default-rtdb.asia-southeast1.firebasedatabase.app")
+    fun provideFirebaseDatabase(@ApplicationContext context: Context): FirebaseDatabase {
+        ensureFirebaseInitialized(context)
+        return FirebaseDatabase.getInstance("https://ilm-e-zubaan-default-rtdb.asia-southeast1.firebasedatabase.app")
+    }
 
     @Provides
     @Singleton
-    fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+    fun provideFirebaseFirestore(@ApplicationContext context: Context): FirebaseFirestore {
+        ensureFirebaseInitialized(context)
+        return FirebaseFirestore.getInstance()
+    }
 
     @Provides
     @Singleton
-    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+    fun provideFirebaseAuth(@ApplicationContext context: Context): FirebaseAuth {
+        ensureFirebaseInitialized(context)
+        return FirebaseAuth.getInstance()
+    }
+
+    private fun ensureFirebaseInitialized(context: Context) {
+        if (FirebaseApp.getApps(context).isEmpty()) {
+            FirebaseApp.initializeApp(context)
+        }
+    }
 }

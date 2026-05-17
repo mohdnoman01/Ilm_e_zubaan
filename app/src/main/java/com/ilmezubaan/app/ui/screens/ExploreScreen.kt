@@ -31,6 +31,7 @@ import com.ilmezubaan.app.ui.viewmodel.LanguageViewModel
 @Composable
 fun ExploreScreen(
     onBack: () -> Unit,
+    onWatchVideo: (title: String, url: String) -> Unit,
     viewModel: LanguageViewModel
 ) {
     val selectedLanguage by viewModel.selectedLanguage.collectAsState()
@@ -106,14 +107,20 @@ fun ExploreScreen(
                     )
                     Spacer(Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        val introVideoUrl = exploreData.introVideoUrl
                         Button(
-                            onClick = { /* Play Video */ },
+                            onClick = { 
+                                introVideoUrl?.let {
+                                    onWatchVideo("${exploreData.languageName} Intro", it)
+                                }
+                            },
+                            enabled = introVideoUrl != null,
                             colors = ButtonDefaults.buttonColors(containerColor = AppTeal),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(Icons.Default.PlayArrow, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
-                            Text("Watch")
+                            Text("Watch Intro")
                         }
                         OutlinedButton(
                             onClick = { /* Share */ },
@@ -159,9 +166,9 @@ fun ExploreScreen(
 
             // Dynamic Content
             when (selectedTab) {
-                0 -> HistoryTab(exploreData)
-                1 -> CultureTab(exploreData)
-                2 -> RegionTab(exploreData)
+                0 -> HistoryTab(exploreData, onWatchVideo)
+                1 -> CultureTab(exploreData, onWatchVideo)
+                2 -> RegionTab(exploreData, onWatchVideo)
             }
             
             Spacer(Modifier.height(32.dp))
@@ -195,9 +202,20 @@ fun StatItem(label: String, value: String, icon: ImageVector) {
 }
 
 @Composable
-fun HistoryTab(data: ExploreData) {
+fun HistoryTab(data: ExploreData, onWatchVideo: (String, String) -> Unit) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-        SectionHeader(title = "Origin & Evolution")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionHeader(title = data.history.mainHeading)
+            if (data.historyVideoUrl != null) {
+                IconButton(onClick = { onWatchVideo("History of ${data.languageName}", data.historyVideoUrl) }) {
+                    Icon(Icons.Default.PlayCircle, contentDescription = "Watch History", tint = NeonCyan)
+                }
+            }
+        }
         Text(
             text = data.history.description,
             style = MaterialTheme.typography.bodyMedium,
@@ -206,7 +224,7 @@ fun HistoryTab(data: ExploreData) {
         )
         
         Spacer(Modifier.height(24.dp))
-        SectionHeader(title = "Key Milestones")
+        SectionHeader(title = "Key Highlights")
         data.history.keyPoints.forEach { point ->
             InfoCardItem(point, color = AppOrange)
             Spacer(Modifier.height(12.dp))
@@ -223,9 +241,20 @@ fun HistoryTab(data: ExploreData) {
 }
 
 @Composable
-fun CultureTab(data: ExploreData) {
+fun CultureTab(data: ExploreData, onWatchVideo: (String, String) -> Unit) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-        SectionHeader(title = data.culture.mainHeading)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionHeader(title = data.culture.mainHeading)
+            if (data.cultureVideoUrl != null) {
+                IconButton(onClick = { onWatchVideo("${data.languageName} Culture", data.cultureVideoUrl) }) {
+                    Icon(Icons.Default.PlayCircle, contentDescription = "Watch Culture", tint = NeonCyan)
+                }
+            }
+        }
         Text(
             text = data.culture.description,
             style = MaterialTheme.typography.bodyMedium,
@@ -272,9 +301,20 @@ fun CultureTab(data: ExploreData) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun RegionTab(data: ExploreData) {
+fun RegionTab(data: ExploreData, onWatchVideo: (String, String) -> Unit) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-        SectionHeader(title = data.region.mainHeading)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionHeader(title = data.region.mainHeading)
+            if (data.regionVideoUrl != null) {
+                IconButton(onClick = { onWatchVideo("${data.languageName} Regions", data.regionVideoUrl) }) {
+                    Icon(Icons.Default.PlayCircle, contentDescription = "Watch Regions", tint = NeonCyan)
+                }
+            }
+        }
         Text(
             text = data.region.description,
             style = MaterialTheme.typography.bodyMedium,

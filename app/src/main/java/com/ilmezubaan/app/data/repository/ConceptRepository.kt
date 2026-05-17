@@ -88,6 +88,10 @@ class ConceptRepository(
                             val level = data.firstString("level", "difficultyLevel").ifBlank { "Basic" }
                             val context = data.firstString("context").ifBlank { null }
                             val audioUrl = data.firstString("audio_url", "audioUrl")
+                            val mediaUrl = data.firstString("media_url", "mediaUrl", "video_url", "videoUrl").ifBlank { audioUrl }
+                            val type = data.firstString("type", "lesson_type").ifBlank { 
+                                if (mediaUrl.contains(".mp4", ignoreCase = true)) "VIDEO" else "AUDIO" 
+                            }
 
                             val example = data.firstString("${langName}_example", "example")
 
@@ -107,6 +111,8 @@ class ConceptRepository(
                             languages[langName] = LanguageDetail(
                                 script = nativeScript,
                                 roman = data.firstString("roman", "pronunciation", "transliteration"),
+                                type = type,
+                                mediaUrl = mediaUrl,
                                 audioUrl = audioUrl,
                                 example = example,
                                 exampleMeaning = exampleMeaning

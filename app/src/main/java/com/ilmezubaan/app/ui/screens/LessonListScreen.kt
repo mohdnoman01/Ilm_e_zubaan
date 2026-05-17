@@ -60,11 +60,10 @@ fun LessonListScreen(
                     LessonCard(
                         lesson = Lesson(
                             title = langData.script,
-                            type = "AUDIO",
+                            type = langData.type,
                             conceptId = concept.conceptId,
                             subtitle = concept.englishMeaning,
-
-                            audioUrl = langData.audioUrl
+                            audioUrl = langData.mediaUrl ?: langData.audioUrl
                         ),
                         onClick = onLessonClick
                     )
