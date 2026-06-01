@@ -13,6 +13,8 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
     private var textToSpeech: TextToSpeech? = null
     private var initialized = false
 
+    private var pendingSpeech: SpeechText? = null
+
     private fun ensureTts() {
         if (textToSpeech == null) {
             Timber.d("Initializing TTS Engine...")
@@ -26,63 +28,62 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
             textToSpeech?.setSpeechRate(DEFAULT_SPEECH_RATE)
             textToSpeech?.setPitch(DEFAULT_PITCH)
             Timber.d("TTS Initialized successfully")
+            
+            // Speak pending request if any
+            pendingSpeech?.let { 
+                speak(it)
+                pendingSpeech = null
+            }
         } else {
             initialized = false
             Timber.e("TTS Initialization failed with status: $status")
+            pendingSpeech = null
         }
     }
 
     fun speak(speechText: SpeechText) {
-        ensureTts()
         val cleanText = speechText.text.trim()
-        val engine = textToSpeech
-
-        if (engine == null) {
-            Timber.e("Speak failed: Engine is null")
-            return
-        }
-
-        if (!initialized) {
-            Timber.w("Speak called before initialization. Initializing again if null.")
-            if (textToSpeech == null) {
-                textToSpeech = TextToSpeech(appContext, this)
-            }
-            return
-        }
-
         if (cleanText.isEmpty()) return
 
+        if (!initialized) {
+            Timber.w("TTS not initialized. Queuing request.")
+            pendingSpeech = speechText
+            ensureTts()
+            return
+        }
+
+        val engine = textToSpeech ?: return
         val requestedLocale = TtsLocaleRegistry.localeFor(speechText.languageCode)
-        Timber.d("TTS Requesting locale: $requestedLocale for language: ${speechText.languageCode}")
         
         var localeStatus = engine.setLanguage(requestedLocale)
 
-        // Improved fallback logic: If regional language is missing, try Urdu (most similar script)
-        if (localeStatus == TextToSpeech.LANG_MISSING_DATA ||
-            localeStatus == TextToSpeech.LANG_NOT_SUPPORTED
-        ) {
-            Timber.w("Locale $requestedLocale not supported. Attempting Urdu fallback...")
-            val urduLocale = java.util.Locale("ur", "PK")
-            localeStatus = engine.setLanguage(urduLocale)
+        // Robust fallback logic for Pakistani regional languages
+        if (localeStatus <= TextToSpeech.LANG_MISSING_DATA) {
+            val isArabicScript = cleanText.any { it in '\u0600'..'\u06FF' || it in '\u0750'..'\u077F' }
             
-            if (localeStatus == TextToSpeech.LANG_MISSING_DATA ||
-                localeStatus == TextToSpeech.LANG_NOT_SUPPORTED
-            ) {
-                Timber.w("Urdu fallback failed. Falling back to English.")
-                engine.setLanguage(LocaleFallback)
+            if (isArabicScript) {
+                Timber.w("Locale $requestedLocale not supported for Arabic-script text. Trying Urdu fallback...")
+                localeStatus = engine.setLanguage(java.util.Locale("ur", "PK"))
+                if (localeStatus <= TextToSpeech.LANG_MISSING_DATA) {
+                    localeStatus = engine.setLanguage(java.util.Locale("ur"))
+                }
+            } else {
+                Timber.w("Locale $requestedLocale not supported. Falling back to English.")
+                localeStatus = engine.setLanguage(java.util.Locale.US)
             }
         }
 
-        val result = engine.speak(
+        if (localeStatus <= TextToSpeech.LANG_MISSING_DATA) {
+            Timber.e("No suitable TTS engine found for text. Status: $localeStatus")
+            return
+        }
+
+        engine.speak(
             cleanText,
             TextToSpeech.QUEUE_FLUSH,
             Bundle(),
             UUID.randomUUID().toString()
         )
-        
-        if (result == TextToSpeech.ERROR) {
-            Timber.e("Engine.speak returned error for text: $cleanText")
-        }
     }
 
     fun stop() {
@@ -118,6 +119,5 @@ class TtsManager(context: Context) : TextToSpeech.OnInitListener {
         const val KEY_INSTALL_PROMPT_SHOWN = "install_prompt_shown"
         const val DEFAULT_SPEECH_RATE = 0.85f // Slightly slower for better clarity
         const val DEFAULT_PITCH = 0.95f      // Slightly lower pitch for a calmer, more natural tone
-        val LocaleFallback = java.util.Locale.US
     }
 }

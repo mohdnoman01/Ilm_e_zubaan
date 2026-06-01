@@ -22,7 +22,7 @@ import com.ilmezubaan.app.data.local.entities.WordInsightEntity
         LanguageMetadataEntity::class,
         WordInsightEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 @TypeConverters(LanguageConverter::class)

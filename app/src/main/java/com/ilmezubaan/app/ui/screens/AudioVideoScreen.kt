@@ -47,6 +47,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
@@ -72,6 +73,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.common.util.UnstableApi
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.media3.common.PlaybackException
+
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,33 +96,43 @@ fun AudioVideoScreen(
         audioUrl?.toPlayableMediaUri(context)
     }
     
-    val exoPlayer = remember(mediaUri, lessonType) {
-        ExoPlayer.Builder(context).build().apply {
-            addListener(object : androidx.media3.common.Player.Listener {
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    Timber.e(error, "ExoPlayer Error: ${error.message} - URL: $audioUrl")
-                    playerErrorMessage = "Unable to play this media"
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build()
+    }
+
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                Timber.e(error, "ExoPlayer Error: ${error.message} - URL: $audioUrl")
+                playerErrorMessage = "Unable to play this media"
+                isPlaying = false
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
                     isPlaying = false
                 }
-                
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED) {
-                        isPlaying = false
-                    }
-                }
-                
-                override fun onIsPlayingChanged(isPlayingNow: Boolean) {
-                    isPlaying = isPlayingNow
-                }
-            })
-            
+            }
+
+            override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                isPlaying = isPlayingNow
+            }
+        }
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+        }
+    }
+
+    LaunchedEffect(mediaUri, lessonType, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             if (mediaUri != null) {
                 val mediaItem = MediaItem.Builder()
                     .setUri(mediaUri)
                     .setMimeType(if (lessonType == "VIDEO") MimeTypes.VIDEO_MP4 else MimeTypes.AUDIO_MPEG)
                     .build()
-                setMediaItem(mediaItem)
-                prepare()
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
             } else if (!audioUrl.isNullOrBlank()) {
                 playerErrorMessage = "Media resource not found"
             }

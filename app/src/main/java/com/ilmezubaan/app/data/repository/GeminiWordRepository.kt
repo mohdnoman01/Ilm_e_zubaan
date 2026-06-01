@@ -2,7 +2,6 @@ package com.ilmezubaan.app.data.repository
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.ilmezubaan.app.BuildConfig
 import com.ilmezubaan.app.data.local.dao.WordInsightDao
 import com.ilmezubaan.app.data.local.entities.WordInsightEntity
@@ -12,7 +11,9 @@ import com.ilmezubaan.app.data.remote.gemini.GeminiGenerateContentRequest
 import com.ilmezubaan.app.data.remote.gemini.GeminiGenerationConfig
 import com.ilmezubaan.app.data.remote.gemini.GeminiPart
 import com.ilmezubaan.app.data.remote.gemini.WordInsight
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import timber.log.Timber
 import javax.inject.Inject
@@ -37,7 +38,7 @@ class GeminiWordRepository @Inject constructor(
         word: String,
         learningLanguage: String,
         nativeLanguage: String
-    ): Result<WordInsight> {
+    ): Result<WordInsight> = withContext(Dispatchers.IO) {
         val cleanWord = word.trim().lowercase()
         
         // 1. Check Cache first
@@ -45,7 +46,7 @@ class GeminiWordRepository @Inject constructor(
             wordInsightDao.getInsight(cleanWord, learningLanguage, nativeLanguage)
         }.getOrNull()?.let { cached ->
             Timber.d("Returning cached insight for: $cleanWord")
-            return Result.success(
+            return@withContext Result.success(
                 WordInsight(
                     meaning = cached.meaning,
                     urduMeaning = cached.urduMeaning,
@@ -56,7 +57,7 @@ class GeminiWordRepository @Inject constructor(
         }
 
         if (apiKeys.isEmpty()) {
-            return Result.failure(IllegalStateException("No Gemini API keys found. Please check local.properties and Sync Gradle."))
+            return@withContext Result.failure(IllegalStateException("No Gemini API keys found. Please check local.properties and Sync Gradle."))
         }
 
         val request = createRequest(cleanWord, learningLanguage, nativeLanguage)
@@ -71,7 +72,7 @@ class GeminiWordRepository @Inject constructor(
                 if (result.isSuccess) {
                     val insight = result.getOrThrow()
                     saveToCache(cleanWord, learningLanguage, nativeLanguage, insight)
-                    return Result.success(insight)
+                    return@withContext Result.success(insight)
                 }
 
                 val error = result.exceptionOrNull() ?: Exception("Unknown error")
@@ -90,7 +91,7 @@ class GeminiWordRepository @Inject constructor(
         }
 
         val allAreQuota = errors.all { it is HttpException && it.code() == 429 }
-        return if (allAreQuota) {
+        if (allAreQuota) {
             Result.failure(IllegalStateException("All API keys and models exceeded quota. Please wait 1 minute and try again."))
         } else {
             val mostRelevantError = errors.find { it !is HttpException || it.code() != 429 } ?: errors.first()
@@ -194,86 +195,47 @@ class GeminiWordRepository @Inject constructor(
     }
 
     private fun parseWordInsight(rawJson: String): WordInsight {
+        val cleaned = rawJson.trim()
         return runCatching {
-            val insight = gson.fromJson(rawJson, WordInsight::class.java)
+            val insight = gson.fromJson(cleaned, WordInsight::class.java)
             if (insight.meaning.isBlank() && insight.urduMeaning.isBlank()) {
                 throw IllegalStateException("Parsed insight is empty")
             }
             insight
         }.recoverCatching {
-            val normalizedJson = normalizeMalformedJson(rawJson)
+            val normalizedJson = normalizeMalformedJson(cleaned)
             val insight = gson.fromJson(normalizedJson, WordInsight::class.java)
             if (insight.meaning.isBlank() && insight.urduMeaning.isBlank()) {
                 throw IllegalStateException("Parsed normalized insight is empty")
             }
             insight
         }.recoverCatching {
-            val jsonObject = JsonParser.parseString(normalizeMalformedJson(rawJson)).asJsonObject
-            val insight = wordInsightFromJsonObject(jsonObject)
-            if (insight.meaning.isBlank() && insight.urduMeaning.isBlank()) {
-                throw IllegalStateException("Parsed JSON object insight is empty")
-            }
-            insight
-        }.recoverCatching {
-            val insight = extractWordInsightFromText(rawJson)
+            val insight = extractWordInsightFromText(cleaned)
             if (insight.meaning.isBlank() && insight.urduMeaning.isBlank()) {
                 throw IllegalStateException("Extracted insight is empty")
             }
             insight
         }.getOrElse { error ->
             Timber.e(error, "Unable to parse Gemini response. raw=$rawJson")
-            throw IllegalStateException("Gemini returned an invalid or empty response. Please try again.")
+            throw IllegalStateException("Gemini returned an invalid response. Please try again.")
         }
     }
 
     private fun normalizeMalformedJson(raw: String): String {
-        val builder = StringBuilder(raw.length + 16)
-        var inString = false
-        var escaping = false
-
-        for (char in raw) {
-            when {
-                escaping -> {
-                    builder.append(char)
-                    escaping = false
-                }
-                char == '\\' -> {
-                    builder.append(char)
-                    escaping = true
-                }
-                char == '"' -> {
-                    builder.append(char)
-                    inString = !inString
-                }
-                inString && char == '\n' -> builder.append("\\n")
-                inString && char == '\r' -> builder.append("\\r")
-                else -> builder.append(char)
-            }
-        }
-
-        return builder.toString()
-    }
-
-    private fun wordInsightFromJsonObject(jsonObject: JsonObject): WordInsight {
-        fun valueFor(key: String): String {
-            return jsonObject[key]?.asString?.trim().orEmpty()
-        }
-
-        return WordInsight(
-            meaning = valueFor("meaning"),
-            urduMeaning = valueFor("urduMeaning"),
-            pronunciation = valueFor("pronunciation"),
-            exampleSentence = valueFor("exampleSentence")
-        )
+        if (raw.isEmpty()) return raw
+        // Use regex for basic normalization instead of a complex manual loop
+        return raw.replace(Regex("(?<!\\\\)\\n"), "\\n")
+            .replace(Regex("(?<!\\\\)\\r"), "")
+            .trim()
     }
 
     private fun extractWordInsightFromText(text: String): WordInsight {
         fun extract(vararg labels: String): String {
             for (label in labels) {
-                val regex = Regex(
-                    pattern = """(?im)^["\s{\[]*${Regex.escape(label)}["\s:=-]*(.+?)(?=^\s*[A-Za-z][A-Za-z _]*["\s:=-]|\z)""",
-                    options = setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
-                )
+                // Improved regex to handle quoted or unquoted keys and various separators, 
+                // capturing until next key or end of string.
+                val pattern = """(?im)["']?${Regex.escape(label)}["']?\s*[:=-]\s*["']?(.+?)(?=["']?\s*,?\s*["']?[A-Za-z_]+["']?\s*[:=-]|\s*["'}]?\s*\z)"""
+                val regex = Regex(pattern, setOf(RegexOption.DOT_MATCHES_ALL))
                 val match = regex.find(text)?.groupValues?.getOrNull(1)?.cleanExtractedValue()
                 if (!match.isNullOrBlank()) return match
             }

@@ -30,6 +30,21 @@ fun AppNavGraph() {
         composable<Route.Login> {
             val userStats by homeViewModel.userStats.collectAsState()
             
+            // Auto-login check
+            androidx.compose.runtime.LaunchedEffect(userStats.userName, userStats.selectedLanguageName, userStats.nativeLanguageName) {
+                if (userStats.userName.isNotEmpty()) {
+                    if (userStats.selectedLanguageName != null && userStats.nativeLanguageName != null) {
+                        navController.navigate(Route.Home) {
+                            popUpTo(Route.Login) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Route.LanguageNative) {
+                            popUpTo(Route.Login) { inclusive = true }
+                        }
+                    }
+                }
+            }
+
             val onLoginSuccess: (Boolean) -> Unit = remember(navController, userStats) {
                 { isNewUser: Boolean ->
                     if (isNewUser) {

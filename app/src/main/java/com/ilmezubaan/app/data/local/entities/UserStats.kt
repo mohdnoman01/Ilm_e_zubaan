@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "user_stats")
 data class UserStats(
     @PrimaryKey val id: Int = 0,
-    val userName: String = "User",
+    val userName: String = "",
     val xpPoints: Int = 0,
     val currentStreak: Int = 0,
     val avatarEmoji: String = "👤",

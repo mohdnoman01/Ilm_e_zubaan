@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -62,6 +65,10 @@ fun AIScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var wordInput by rememberSaveable { mutableStateOf("") }
+    
+    val isLookupEnabled by remember(wordInput, uiState.isLoading) {
+        derivedStateOf { wordInput.isNotBlank() && !uiState.isLoading }
+    }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
@@ -106,6 +113,7 @@ fun AIScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -114,6 +122,7 @@ fun AIScreen(
                 wordInput = wordInput,
                 onWordInputChange = { wordInput = it },
                 isLoading = uiState.isLoading,
+                enabled = isLookupEnabled
             ) {
                 viewModel.loadWordInsight(
                     word = wordInput,
@@ -122,23 +131,14 @@ fun AIScreen(
                 )
             }
 
-            if (uiState.isLoading) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = DarkSurface,
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(color = NeonCyan)
-                        Text(
-                            text = "Getting a short, simple explanation...",
-                            color = TextGrey
-                        )
-                    }
-                }
+            if (uiState.isLoading && uiState.insight == null) {
+                // Showing loading in button is enough, or we can keep a subtle text
+                Text(
+                    text = "Generating beginner-friendly explanation...",
+                    color = TextGrey,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
             }
 
             uiState.insight?.let { insight ->
@@ -156,6 +156,7 @@ fun AIWordLookupSection(
     wordInput: String,
     onWordInputChange: (String) -> Unit,
     isLoading: Boolean,
+    enabled: Boolean,
     onLookupClick: () -> Unit,
 ) {
     Surface(
@@ -197,11 +198,23 @@ fun AIWordLookupSection(
             )
             Button(
                 onClick = onLookupClick,
-                enabled = !isLoading,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonPurple),
-                shape = RoundedCornerShape(18.dp)
+                enabled = enabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonPurple,
+                    disabledContainerColor = NeonPurple.copy(alpha = 0.5f)
+                ),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Explain Word", color = TextWhite)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = TextWhite,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Explain Word", color = TextWhite)
+                }
             }
         }
     }

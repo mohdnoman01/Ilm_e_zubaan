@@ -43,7 +43,7 @@ class ConceptViewModel @Inject constructor(private val repository: ConceptReposi
     }
 
     fun insertConcepts(concepts: List<ConceptEntity>) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.insertConcepts(concepts)
         }
     }
